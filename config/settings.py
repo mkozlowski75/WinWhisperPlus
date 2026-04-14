@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 
 DEFAULT_SETTINGS = {
-    "hotkey_record": "alt+shift+r",
+    "hotkey_record": "ctrl+alt+h",
     "hotkey_language": "alt+shift+s",
     "language": "de",           # 'de', 'pl', 'en'
     "microphone_index": None,   # None = system default
