@@ -116,6 +116,12 @@ class TrayIcon(QObject):
 
         self._tray.setContextMenu(menu)
 
-    def _on_activated(self, reason: QSystemTrayIcon.ActivationReason) -> None:
-        if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
-            self.toggle_recording_requested.emit()
+    def _on_activated(self, reason) -> None:
+        try:
+            # In PyQt6, we need to check the reason value directly
+            if reason == QSystemTrayIcon.ActivationReason.DoubleClick or reason == 2:
+                self.toggle_recording_requested.emit()
+        except (TypeError, AttributeError):
+            # Fallback for different PyQt versions
+            if reason == 2:  # DoubleClick
+                self.toggle_recording_requested.emit()
