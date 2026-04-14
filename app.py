@@ -22,7 +22,7 @@ from config.settings import LANGUAGES, Settings
 from core.hotkey_manager import HotkeyManager
 from core.recorder import Recorder
 from core.transcriber import Transcriber
-from core.text_inserter import insert_text
+from core.text_inserter import insert_text, press_enter
 from gui.settings_window import SettingsWindow
 from gui.tray_icon import TrayIcon
 from gui.status_window import StatusWindow
@@ -151,8 +151,21 @@ class Application(QObject):
     @pyqtSlot(str)
     def _on_transcription_done(self, text: str) -> None:
         if text and self._settings.auto_insert:
-            # Small delay so hotkey keys are fully released before pasting
-            threading.Timer(0.2, insert_text, args=(text,)).start()
+            # Check if the last word is "enter" (case-insensitive)
+            words = text.strip().split()
+            if words and words[-1].lower() == "enter":
+                # Remove "enter" from the text and press Enter key
+                remaining_text = " ".join(words[:-1])
+                if remaining_text:
+                    # Insert remaining text, then press Enter
+                    threading.Timer(0.2, insert_text, args=(remaining_text,)).start()
+                    threading.Timer(0.4, press_enter).start()
+                else:
+                    # Only "enter" was said, just press Enter
+                    threading.Timer(0.2, press_enter).start()
+            else:
+                # Normal text insertion
+                threading.Timer(0.2, insert_text, args=(text,)).start()
         self._status_changed.emit("inserted")
         # Reset to ready after a moment so the user sees the confirmation
         threading.Timer(2.0, lambda: self._status_changed.emit("ready")).start()

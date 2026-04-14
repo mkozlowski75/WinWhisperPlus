@@ -49,6 +49,11 @@ def insert_text(text: str) -> None:
             _set_clipboard(previous)
 
 
+def press_enter() -> None:
+    """Press the Enter key in the currently focused application."""
+    pyautogui.press("enter")
+
+
 # ------------------------------------------------------------------
 # Clipboard helpers
 # ------------------------------------------------------------------
