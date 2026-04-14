@@ -13,6 +13,7 @@ Wires together:
 
 from __future__ import annotations
 
+import re
 import threading
 
 from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot
@@ -153,16 +154,22 @@ class Application(QObject):
         if text and self._settings.auto_insert:
             # Check if the last word is "enter" (case-insensitive)
             words = text.strip().split()
-            if words and words[-1].lower() == "enter":
-                # Remove "enter" from the text and press Enter key
-                remaining_text = " ".join(words[:-1])
-                if remaining_text:
-                    # Insert remaining text, then press Enter
-                    threading.Timer(0.2, insert_text, args=(remaining_text,)).start()
-                    threading.Timer(0.4, press_enter).start()
+            if words:
+                # Remove punctuation from the last word
+                last_word = re.sub(r'[^\w]', '', words[-1]).lower()
+                if last_word == "enter":
+                    # Remove "enter" from the text and press Enter key
+                    remaining_text = " ".join(words[:-1])
+                    if remaining_text:
+                        # Insert remaining text, then press Enter
+                        threading.Timer(0.2, insert_text, args=(remaining_text,)).start()
+                        threading.Timer(0.4, press_enter).start()
+                    else:
+                        # Only "enter" was said, just press Enter
+                        threading.Timer(0.2, press_enter).start()
                 else:
-                    # Only "enter" was said, just press Enter
-                    threading.Timer(0.2, press_enter).start()
+                    # Normal text insertion
+                    threading.Timer(0.2, insert_text, args=(text,)).start()
             else:
                 # Normal text insertion
                 threading.Timer(0.2, insert_text, args=(text,)).start()
