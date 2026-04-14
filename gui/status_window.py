@@ -22,10 +22,17 @@ _STATUS_COLORS = {
 }
 
 
+def _format_hotkey(hotkey: str) -> str:
+    """Convert hotkey format from 'alt+shift+r' to 'Alt+Shift+R'."""
+    parts = hotkey.split("+")
+    formatted = [part.capitalize() for part in parts]
+    return "+".join(formatted)
+
+
 class StatusWindow(QWidget):
     """Compact floating status widget."""
 
-    def __init__(self) -> None:
+    def __init__(self, hotkey_record: str = "") -> None:
         super().__init__()
         self.setWindowTitle("MyWhisper")
         self.setWindowFlags(
@@ -33,7 +40,7 @@ class StatusWindow(QWidget):
             | Qt.WindowType.WindowStaysOnTopHint
             | Qt.WindowType.Tool
         )
-        self.setFixedSize(240, 60)
+        self.setFixedSize(280, 70)
         self._layout = QVBoxLayout(self)
         self._layout.setContentsMargins(8, 4, 8, 4)
 
@@ -42,10 +49,18 @@ class StatusWindow(QWidget):
         self._label.setStyleSheet("font-size: 14px; font-weight: bold;")
         self._layout.addWidget(self._label)
 
+        # Secondary label for hotkey
+        self._hotkey_label = QLabel()
+        self._hotkey_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._hotkey_label.setStyleSheet("font-size: 11px; color: #666;")
+        self._layout.addWidget(self._hotkey_label)
+
         self._msg_timer = QTimer(self)
         self._msg_timer.setSingleShot(True)
         self._msg_timer.timeout.connect(self._clear_message)
         self._base_status = "ready"
+        self._hotkey_record = _format_hotkey(hotkey_record) if hotkey_record else ""
+        self._update_hotkey_display()
 
     # ------------------------------------------------------------------
     # Public API
@@ -55,6 +70,11 @@ class StatusWindow(QWidget):
         self._base_status = status
         if not self._msg_timer.isActive():
             self._apply_status(status)
+
+    def set_hotkey(self, hotkey_record: str) -> None:
+        """Update the displayed hotkey."""
+        self._hotkey_record = _format_hotkey(hotkey_record) if hotkey_record else ""
+        self._update_hotkey_display()
 
     def show_message(self, message: str, duration_ms: int = 2500) -> None:
         """Show a temporary overlay message for *duration_ms* milliseconds."""
@@ -67,6 +87,13 @@ class StatusWindow(QWidget):
     # ------------------------------------------------------------------
     # Internal
     # ------------------------------------------------------------------
+
+    def _update_hotkey_display(self) -> None:
+        """Update the hotkey display label."""
+        if self._hotkey_record:
+            self._hotkey_label.setText(f"Hotkey: {self._hotkey_record}")
+        else:
+            self._hotkey_label.setText("")
 
     def _apply_status(self, status: str) -> None:
         text = _STATUS_TEXTS.get(status, status)

@@ -45,7 +45,7 @@ class Application(QObject):
 
         # GUI
         self._tray = TrayIcon(parent=self)
-        self._status_window = StatusWindow()
+        self._status_window = StatusWindow(hotkey_record=self._settings.hotkey_record)
 
         self._connect_signals()
         self._apply_settings(self._settings)
@@ -90,6 +90,8 @@ class Application(QObject):
         self._hotkey_mgr.register(settings.hotkey_language, self._cycle_language)
         self._recorder = Recorder(device_index=settings.microphone_index)
         self._transcriber.set_model(settings.whisper_model)
+        # Update the displayed hotkey in the status window
+        self._status_window.set_hotkey(settings.hotkey_record)
 
     def _open_settings(self) -> None:
         dlg = SettingsWindow(self._settings)
