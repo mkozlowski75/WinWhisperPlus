@@ -63,6 +63,7 @@ class TrayIcon(QObject):
 
     toggle_recording_requested = pyqtSignal()
     open_settings_requested = pyqtSignal()
+    open_history_requested = pyqtSignal()
     quit_requested = pyqtSignal()
 
     def __init__(self, parent: QObject | None = None) -> None:
@@ -105,6 +106,9 @@ class TrayIcon(QObject):
         self._record_action.triggered.connect(self.toggle_recording_requested)
 
         menu.addSeparator()
+
+        history_action = menu.addAction("Verlauf…")
+        history_action.triggered.connect(self.open_history_requested)
 
         settings_action = menu.addAction("Einstellungen…")
         settings_action.triggered.connect(self.open_settings_requested)

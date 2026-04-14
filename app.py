@@ -24,6 +24,7 @@ from core.hotkey_manager import HotkeyManager
 from core.recorder import Recorder
 from core.transcriber import Transcriber
 from core.text_inserter import insert_text, press_enter
+from gui.history_window import HistoryWindow
 from gui.settings_window import SettingsWindow
 from gui.tray_icon import TrayIcon
 from gui.status_window import StatusWindow
@@ -35,6 +36,7 @@ class Application(QObject):
     # Signals are used to safely update the Qt GUI from background threads
     _status_changed = pyqtSignal(str)
     _transcription_done = pyqtSignal(str)
+    _open_history_requested = pyqtSignal()
 
     def __init__(self, qapp: QApplication) -> None:
         super().__init__()
@@ -43,10 +45,13 @@ class Application(QObject):
         self._recorder = Recorder(device_index=self._settings.microphone_index)
         self._transcriber = Transcriber(model_name=self._settings.whisper_model)
         self._hotkey_mgr = HotkeyManager()
+        self._history: list[str] = []  # Session history of recognized texts (max 50)
+        self._max_history = 50
 
         # GUI
         self._tray = TrayIcon(parent=self)
         self._status_window = StatusWindow(hotkey_record=self._settings.hotkey_record, settings=self._settings)
+        self._history_window = HistoryWindow(parent=None)
 
         self._connect_signals()
         self._apply_settings(self._settings)
@@ -76,10 +81,13 @@ class Application(QObject):
     def _connect_signals(self) -> None:
         self._tray.toggle_recording_requested.connect(self._toggle_recording)
         self._tray.open_settings_requested.connect(self._open_settings)
+        self._tray.open_history_requested.connect(self._open_history)
         self._tray.quit_requested.connect(self._quit)
 
         self._status_changed.connect(self._on_status_changed)
         self._transcription_done.connect(self._on_transcription_done)
+        
+        self._history_window.text_selected.connect(self._on_history_text_selected)
 
     # ------------------------------------------------------------------
     # Settings
@@ -152,6 +160,13 @@ class Application(QObject):
 
     @pyqtSlot(str)
     def _on_transcription_done(self, text: str) -> None:
+        # Save to history
+        if text and text.strip():
+            self._history.append(text)
+            # Keep only last 50 items
+            if len(self._history) > self._max_history:
+                self._history = self._history[-self._max_history:]
+        
         if text and self._settings.auto_insert:
             # Check if the last word is "enter" (case-insensitive)
             words = text.strip().split()
@@ -180,6 +195,24 @@ class Application(QObject):
         self._status_changed.emit("inserted")
         # Reset to ready after a moment so the user sees the confirmation
         threading.Timer(2.0, lambda: self._status_changed.emit("ready")).start()
+
+    # ------------------------------------------------------------------
+    # History
+    # ------------------------------------------------------------------
+
+    @pyqtSlot()
+    def _open_history(self) -> None:
+        """Show history window with recent transcriptions."""
+        self._history_window.set_history(self._history)
+        self._history_window.show()
+
+    @pyqtSlot(str)
+    def _on_history_text_selected(self, text: str) -> None:
+        """Handle text selected from history - insert it."""
+        if text:
+            threading.Timer(0.2, insert_text, args=(text,)).start()
+            self._status_changed.emit("inserted")
+            threading.Timer(2.0, lambda: self._status_changed.emit("ready")).start()
 
     # ------------------------------------------------------------------
     # Quit
