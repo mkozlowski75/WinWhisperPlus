@@ -35,13 +35,8 @@ def _make_icon(color: str, label: str = "") -> QIcon:
     return QIcon(pix)
 
 
-# Status colours
-_ICONS = {
-    "ready":       _make_icon("#4CAF50", "M"),   # green
-    "recording":   _make_icon("#F44336", "●"),   # red
-    "processing":  _make_icon("#FF9800", "…"),   # orange
-    "inserted":    _make_icon("#2196F3", "✓"),   # blue
-}
+# Status colours - lazy initialization to avoid QPixmap before QApplication
+_ICONS = {}
 
 _STATUS_LABELS = {
     "ready":      "Bereit",
@@ -49,6 +44,18 @@ _STATUS_LABELS = {
     "processing": "Verarbeitung läuft",
     "inserted":   "Text eingefügt",
 }
+
+
+def _init_icons() -> None:
+    """Initialize icons after QApplication is created."""
+    global _ICONS
+    if not _ICONS:
+        _ICONS = {
+            "ready":       _make_icon("#4CAF50", "M"),   # green
+            "recording":   _make_icon("#F44336", "●"),   # red
+            "processing":  _make_icon("#FF9800", "…"),   # orange
+            "inserted":    _make_icon("#2196F3", "✓"),   # blue
+        }
 
 
 class TrayIcon(QObject):
@@ -60,6 +67,7 @@ class TrayIcon(QObject):
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
+        _init_icons()  # Initialize icons after QApplication is created
         self._tray = QSystemTrayIcon(parent=None)
         self._tray.setIcon(_ICONS["ready"])
         self._tray.setToolTip("MyWhisper – Bereit")
