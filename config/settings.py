@@ -14,6 +14,8 @@ DEFAULT_SETTINGS = {
     "microphone_index": None,   # None = system default
     "whisper_model": "base",    # tiny, base, small, medium, large
     "auto_insert": True,
+    "window_position_x": None,  # x coordinate of status window
+    "window_position_y": None,  # y coordinate of status window
 }
 
 LANGUAGES = {
@@ -98,6 +100,22 @@ class Settings:
     @microphone_index.setter
     def microphone_index(self, value) -> None:
         self._data["microphone_index"] = value
+
+    @property
+    def window_position_x(self):
+        return self._data["window_position_x"]
+
+    @window_position_x.setter
+    def window_position_x(self, value) -> None:
+        self._data["window_position_x"] = value
+
+    @property
+    def window_position_y(self):
+        return self._data["window_position_y"]
+
+    @window_position_y.setter
+    def window_position_y(self, value) -> None:
+        self._data["window_position_y"] = value
 
     @property
     def whisper_model(self) -> str:

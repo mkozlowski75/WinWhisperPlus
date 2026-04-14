@@ -5,6 +5,7 @@ Small always-visible status window that shows the current application state.
 from __future__ import annotations
 
 from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtGui import QMoveEvent
 from PyQt6.QtWidgets import QLabel, QWidget, QVBoxLayout
 
 _STATUS_TEXTS = {
@@ -32,8 +33,9 @@ def _format_hotkey(hotkey: str) -> str:
 class StatusWindow(QWidget):
     """Compact floating status widget."""
 
-    def __init__(self, hotkey_record: str = "") -> None:
+    def __init__(self, hotkey_record: str = "", settings=None) -> None:
         super().__init__()
+        self._settings = settings
         self.setWindowTitle("MyWhisper")
         self.setWindowFlags(
             Qt.WindowType.Window
@@ -76,6 +78,11 @@ class StatusWindow(QWidget):
         self._hotkey_record = _format_hotkey(hotkey_record) if hotkey_record else ""
         self._update_hotkey_display()
 
+    def load_position(self) -> None:
+        """Load and restore the window position from settings."""
+        if self._settings and self._settings.window_position_x is not None and self._settings.window_position_y is not None:
+            self.move(self._settings.window_position_x, self._settings.window_position_y)
+
     def show_message(self, message: str, duration_ms: int = 2500) -> None:
         """Show a temporary overlay message for *duration_ms* milliseconds."""
         self._label.setText(message)
@@ -105,3 +112,11 @@ class StatusWindow(QWidget):
 
     def _clear_message(self) -> None:
         self._apply_status(self._base_status)
+
+    def moveEvent(self, event: QMoveEvent) -> None:
+        """Save window position when it moves."""
+        super().moveEvent(event)
+        if self._settings:
+            self._settings.window_position_x = self.x()
+            self._settings.window_position_y = self.y()
+            self._settings.save()

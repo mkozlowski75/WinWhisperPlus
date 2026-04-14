@@ -46,7 +46,7 @@ class Application(QObject):
 
         # GUI
         self._tray = TrayIcon(parent=self)
-        self._status_window = StatusWindow(hotkey_record=self._settings.hotkey_record)
+        self._status_window = StatusWindow(hotkey_record=self._settings.hotkey_record, settings=self._settings)
 
         self._connect_signals()
         self._apply_settings(self._settings)
@@ -60,6 +60,7 @@ class Application(QObject):
 
     def start(self) -> None:
         self._tray.show()
+        self._status_window.load_position()
         self._status_window.set_status("ready")
         self._status_window.show()
 
