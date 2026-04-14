@@ -51,7 +51,9 @@ def insert_text(text: str) -> None:
 
 def press_enter() -> None:
     """Press the Enter key in the currently focused application."""
+    time.sleep(0.1)  # Small delay to ensure focus
     pyautogui.press("enter")
+    time.sleep(0.1)  # Small delay after pressing
 
 
 # ------------------------------------------------------------------

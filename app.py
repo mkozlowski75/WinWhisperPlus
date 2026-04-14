@@ -158,15 +158,18 @@ class Application(QObject):
                 # Remove punctuation from the last word
                 last_word = re.sub(r'[^\w]', '', words[-1]).lower()
                 if last_word == "enter":
+                    print(f"DEBUG: Detected 'enter' command. Text: {text}")
                     # Remove "enter" from the text and press Enter key
                     remaining_text = " ".join(words[:-1])
                     if remaining_text:
+                        print(f"DEBUG: Inserting text and pressing Enter: '{remaining_text}'")
                         # Insert remaining text, then press Enter
-                        threading.Timer(0.2, insert_text, args=(remaining_text,)).start()
-                        threading.Timer(0.4, press_enter).start()
+                        threading.Timer(0.3, insert_text, args=(remaining_text,)).start()
+                        threading.Timer(0.6, press_enter).start()
                     else:
                         # Only "enter" was said, just press Enter
-                        threading.Timer(0.2, press_enter).start()
+                        print("DEBUG: Only 'enter' was said, pressing Enter")
+                        threading.Timer(0.3, press_enter).start()
                 else:
                     # Normal text insertion
                     threading.Timer(0.2, insert_text, args=(text,)).start()
