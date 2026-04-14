@@ -37,6 +37,8 @@ class Application(QObject):
     _status_changed = pyqtSignal(str)
     _transcription_done = pyqtSignal(str)
     _open_history_requested = pyqtSignal()
+    _toggle_recording_requested = pyqtSignal()
+    _cycle_language_requested = pyqtSignal()
 
     def __init__(self, qapp: QApplication) -> None:
         super().__init__()
@@ -79,10 +81,20 @@ class Application(QObject):
     # ------------------------------------------------------------------
 
     def _connect_signals(self) -> None:
+        # Route cross-thread requests safely into the Qt main thread.
+        self._toggle_recording_requested.connect(self._toggle_recording)
+        self._cycle_language_requested.connect(self._cycle_language)
+
         self._tray.toggle_recording_requested.connect(self._toggle_recording)
         self._tray.open_settings_requested.connect(self._open_settings)
         self._tray.open_history_requested.connect(self._open_history)
         self._tray.quit_requested.connect(self._quit)
+
+        # Connect StatusWindow signals to same handlers as TrayIcon
+        self._status_window.toggle_recording_requested.connect(self._toggle_recording)
+        self._status_window.open_settings_requested.connect(self._open_settings)
+        self._status_window.open_history_requested.connect(self._open_history)
+        self._status_window.quit_requested.connect(self._quit)
 
         self._status_changed.connect(self._on_status_changed)
         self._transcription_done.connect(self._on_transcription_done)
@@ -96,8 +108,16 @@ class Application(QObject):
     def _apply_settings(self, settings: Settings) -> None:
         """Register hotkeys and update recorder/transcriber from settings."""
         self._hotkey_mgr.unregister_all()
-        self._hotkey_mgr.register(settings.hotkey_record, self._toggle_recording)
-        self._hotkey_mgr.register(settings.hotkey_language, self._cycle_language)
+        # keyboard callbacks can arrive on a background thread;
+        # emit Qt signals so UI work executes on the main thread.
+        self._hotkey_mgr.register(
+            settings.hotkey_record,
+            self._toggle_recording_requested.emit,
+        )
+        self._hotkey_mgr.register(
+            settings.hotkey_language,
+            self._cycle_language_requested.emit,
+        )
         self._recorder = Recorder(device_index=settings.microphone_index)
         self._transcriber.set_model(settings.whisper_model)
         # Update the displayed hotkey in the status window
@@ -120,6 +140,9 @@ class Application(QObject):
             self._start_recording()
 
     def _start_recording(self) -> None:
+        # Ensure window is visible when recording starts
+        self._status_window.raise_()
+        self._status_window.showNormal()
         self._recorder.start()
         self._status_changed.emit("recording")
 

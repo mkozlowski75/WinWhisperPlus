@@ -4,9 +4,9 @@ Small always-visible status window that shows the current application state.
 
 from __future__ import annotations
 
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QMoveEvent
-from PyQt6.QtWidgets import QLabel, QWidget, QVBoxLayout
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
+from PyQt6.QtGui import QMoveEvent, QContextMenuEvent
+from PyQt6.QtWidgets import QLabel, QWidget, QVBoxLayout, QMenu
 
 _STATUS_TEXTS = {
     "ready":      "Bereit",
@@ -32,6 +32,11 @@ def _format_hotkey(hotkey: str) -> str:
 
 class StatusWindow(QWidget):
     """Compact floating status widget."""
+
+    toggle_recording_requested = pyqtSignal()
+    open_settings_requested = pyqtSignal()
+    open_history_requested = pyqtSignal()
+    quit_requested = pyqtSignal()
 
     def __init__(self, hotkey_record: str = "", settings=None) -> None:
         super().__init__()
@@ -62,6 +67,7 @@ class StatusWindow(QWidget):
         self._msg_timer.timeout.connect(self._clear_message)
         self._base_status = "ready"
         self._hotkey_record = _format_hotkey(hotkey_record) if hotkey_record else ""
+        self._record_action = None  # Will be created when context menu is first built
         self._update_hotkey_display()
 
     # ------------------------------------------------------------------
@@ -72,6 +78,11 @@ class StatusWindow(QWidget):
         self._base_status = status
         if not self._msg_timer.isActive():
             self._apply_status(status)
+        # Update context menu recording action text
+        if self._record_action:
+            self._record_action.setText(
+                "Aufnahme stoppen" if status == "recording" else "Aufnahme starten"
+            )
 
     def set_hotkey(self, hotkey_record: str) -> None:
         """Update the displayed hotkey."""
@@ -120,3 +131,36 @@ class StatusWindow(QWidget):
             self._settings.window_position_x = self.x()
             self._settings.window_position_y = self.y()
             self._settings.save()
+
+    def contextMenuEvent(self, event: QContextMenuEvent) -> None:
+        """Display context menu on right-click."""
+        menu = self._build_context_menu()
+        menu.exec(event.globalPos())
+
+    def _build_context_menu(self) -> QMenu:
+        """Build context menu with same options as TrayIcon."""
+        menu = QMenu(self)
+        
+        # Recording action
+        self._record_action = menu.addAction("Aufnahme starten")
+        self._record_action.triggered.connect(self.toggle_recording_requested.emit)
+        
+        # Separator
+        menu.addSeparator()
+        
+        # History action
+        history_action = menu.addAction("Verlauf…")
+        history_action.triggered.connect(self.open_history_requested.emit)
+        
+        # Settings action
+        settings_action = menu.addAction("Einstellungen…")
+        settings_action.triggered.connect(self.open_settings_requested.emit)
+        
+        # Separator
+        menu.addSeparator()
+        
+        # Quit action
+        quit_action = menu.addAction("Beenden")
+        quit_action.triggered.connect(self.quit_requested.emit)
+        
+        return menu
