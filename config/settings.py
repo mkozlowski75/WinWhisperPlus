@@ -12,8 +12,15 @@ DEFAULT_SETTINGS = {
     "hotkey_language": "alt+shift+s",
     "language": "de",           # 'de', 'pl', 'en'
     "microphone_index": None,   # None = system default
-    "whisper_model": "base",    # tiny, base, small, medium, large
+    "whisper_model": "base",    # legacy alias for final_whisper_model
+    "live_whisper_model": "tiny",
+    "final_whisper_model": "base",
     "auto_insert": True,
+    "live_transcription_enabled": False,
+    "live_chunk_seconds": 2.0,
+    "live_overlap_seconds": 0.5,
+    "live_emit_min_interval_seconds": 1.0,
+    "live_stable_window_seconds": 4.0,
     "window_position_x": None,  # x coordinate of status window
     "window_position_y": None,  # y coordinate of status window
 }
@@ -52,6 +59,8 @@ class Settings:
             try:
                 with open(self._path, "r", encoding="utf-8") as fh:
                     stored = json.load(fh)
+                if "final_whisper_model" not in stored and "whisper_model" in stored:
+                    stored["final_whisper_model"] = stored["whisper_model"]
                 # Merge with defaults so new keys are always present
                 self._data.update({k: v for k, v in stored.items() if k in DEFAULT_SETTINGS})
             except (json.JSONDecodeError, OSError):
@@ -119,10 +128,27 @@ class Settings:
 
     @property
     def whisper_model(self) -> str:
-        return self._data["whisper_model"]
+        return self.final_whisper_model
 
     @whisper_model.setter
     def whisper_model(self, value: str) -> None:
+        self.final_whisper_model = value
+
+    @property
+    def live_whisper_model(self) -> str:
+        return self._data["live_whisper_model"]
+
+    @live_whisper_model.setter
+    def live_whisper_model(self, value: str) -> None:
+        self._data["live_whisper_model"] = value
+
+    @property
+    def final_whisper_model(self) -> str:
+        return self._data["final_whisper_model"]
+
+    @final_whisper_model.setter
+    def final_whisper_model(self, value: str) -> None:
+        self._data["final_whisper_model"] = value
         self._data["whisper_model"] = value
 
     @property
@@ -132,6 +158,30 @@ class Settings:
     @auto_insert.setter
     def auto_insert(self, value: bool) -> None:
         self._data["auto_insert"] = bool(value)
+
+    @property
+    def live_transcription_enabled(self) -> bool:
+        return self._data["live_transcription_enabled"]
+
+    @live_transcription_enabled.setter
+    def live_transcription_enabled(self, value: bool) -> None:
+        self._data["live_transcription_enabled"] = bool(value)
+
+    @property
+    def live_chunk_seconds(self) -> float:
+        return float(self._data["live_chunk_seconds"])
+
+    @property
+    def live_overlap_seconds(self) -> float:
+        return float(self._data["live_overlap_seconds"])
+
+    @property
+    def live_emit_min_interval_seconds(self) -> float:
+        return float(self._data["live_emit_min_interval_seconds"])
+
+    @property
+    def live_stable_window_seconds(self) -> float:
+        return float(self._data["live_stable_window_seconds"])
 
     def cycle_language(self) -> str:
         """Switch to the next language in the cycle and return its code."""

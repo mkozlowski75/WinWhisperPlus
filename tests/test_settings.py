@@ -22,12 +22,15 @@ def _make_settings():
 
 def test_default_settings():
     s = _make_settings()
-    assert s.hotkey_record == "alt+shift+r"
+    assert s.hotkey_record == "ctrl+alt+h"
     assert s.hotkey_language == "alt+shift+s"
     assert s.language == "de"
     assert s.microphone_index is None
     assert s.whisper_model == "base"
+    assert s.live_whisper_model == "tiny"
+    assert s.final_whisper_model == "base"
     assert s.auto_insert is True
+    assert s.live_transcription_enabled is False
 
 
 def test_save_and_reload(tmp_path):
@@ -63,7 +66,7 @@ def test_corrupted_json_falls_back_to_defaults(tmp_path):
     config_dir.mkdir()
     (config_dir / "settings.json").write_text("not-valid-json")
     s = _make_settings()
-    assert s.hotkey_record == "alt+shift+r"
+    assert s.hotkey_record == "ctrl+alt+h"
 
 
 def test_partial_json_merges_with_defaults(tmp_path):
@@ -72,4 +75,36 @@ def test_partial_json_merges_with_defaults(tmp_path):
     (config_dir / "settings.json").write_text(json.dumps({"language": "en"}))
     s = _make_settings()
     assert s.language == "en"
-    assert s.hotkey_record == "alt+shift+r"  # default preserved
+    assert s.hotkey_record == "ctrl+alt+h"  # default preserved
+
+
+def test_live_transcription_setting_persists():
+    s = _make_settings()
+    s.live_transcription_enabled = True
+    s.save()
+
+    s2 = _make_settings()
+    assert s2.live_transcription_enabled is True
+
+
+def test_dual_model_settings_persist() -> None:
+    s = _make_settings()
+    s.live_whisper_model = "base"
+    s.final_whisper_model = "small"
+    s.save()
+
+    s2 = _make_settings()
+    assert s2.live_whisper_model == "base"
+    assert s2.final_whisper_model == "small"
+    assert s2.whisper_model == "small"
+
+
+def test_legacy_whisper_model_migrates_to_final(tmp_path) -> None:
+    config_dir = tmp_path / "MyWhisper"
+    config_dir.mkdir()
+    (config_dir / "settings.json").write_text(json.dumps({"whisper_model": "medium"}))
+
+    s = _make_settings()
+
+    assert s.final_whisper_model == "medium"
+    assert s.whisper_model == "medium"

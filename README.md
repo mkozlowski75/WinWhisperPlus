@@ -9,6 +9,7 @@ A Windows speech-recognition tool powered by OpenAI Whisper running entirely loc
 - 🌍 **Language support** – German (Deutsch), Polish (Polski), English.
 - ⌨️ **System-wide hotkeys** – Configurable hotkeys to start/stop recording and cycle languages.
 - 📋 **Auto-insert** – Transcribed text is automatically pasted into the currently active input field.
+- ⚡ **Live mode** – Optional near real-time transcription inserts stable partial text while you are still speaking.
 - 🎛️ **Microphone selection** – Choose from all connected input devices.
 - 🔔 **System tray** – Runs silently in the background with a tray icon and context menu.
 - ⚙️ **Settings GUI** – Configure hotkeys, language, microphone and Whisper model size.
@@ -54,6 +55,16 @@ Click **Einstellungen…** in the tray menu to open the settings dialog where yo
 - Select the default language (Deutsch / Polski / English).
 - Choose a specific microphone from the dropdown.
 - Select the Whisper model size (`tiny` → `large`; larger = more accurate but slower).
+- Enable live transcription if you want stable partial text to be inserted during an active recording.
+
+## Live Transcription
+
+The optional live mode keeps the current push-to-talk workflow, but starts transcribing overlapping audio chunks during the recording.
+
+- Stable partial text is inserted while the recording is still running.
+- When you stop recording, the final full transcription replaces the live partial text block.
+- Spoken `enter` is only executed on the final result so partial hypotheses do not trigger unwanted line breaks.
+- For the best latency, `tiny` or `base` are recommended in live mode.
 
 Settings are saved to `%APPDATA%\MyWhisper\settings.json`.
 

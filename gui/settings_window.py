@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -126,15 +126,28 @@ class SettingsWindow(QDialog):
         mic_layout.addWidget(refresh_btn)
         root.addWidget(mic_group)
 
-        # --- Model -----------------------------------------------------
-        model_group = QGroupBox("Whisper-Modell")
-        model_layout = QHBoxLayout(model_group)
-        self._model_combo = QComboBox()
+        # --- Models ----------------------------------------------------
+        model_group = QGroupBox("Whisper-Modelle")
+        model_layout = QVBoxLayout(model_group)
+
+        live_row = QHBoxLayout()
+        live_row.addWidget(QLabel("Live (schnell):"))
+        self._live_model_combo = QComboBox()
+        for m in ["tiny", "base"]:
+            self._live_model_combo.addItem(m)
+        live_row.addWidget(self._live_model_combo)
+        model_layout.addLayout(live_row)
+
+        final_row = QHBoxLayout()
+        final_row.addWidget(QLabel("Final (genau):"))
+        self._final_model_combo = QComboBox()
         for m in WHISPER_MODELS:
-            self._model_combo.addItem(m)
-        model_layout.addWidget(self._model_combo)
+            self._final_model_combo.addItem(m)
+        final_row.addWidget(self._final_model_combo)
+        model_layout.addLayout(final_row)
+
         model_layout.addWidget(
-            QLabel("(größer = genauer, aber langsamer)")
+            QLabel("Live: tiny/base empfohlen ohne NVIDIA GPU")
         )
         root.addWidget(model_group)
 
@@ -143,6 +156,14 @@ class SettingsWindow(QDialog):
             "Text automatisch einfügen (Ctrl+V)"
         )
         root.addWidget(self._auto_insert_cb)
+
+        self._live_transcription_cb = QCheckBox(
+            "Laufende Erkennung und laufendes Einfügen aktivieren"
+        )
+        self._live_transcription_cb.setToolTip(
+            "Während der Aufnahme werden stabile Zwischenstände laufend eingefügt."
+        )
+        root.addWidget(self._live_transcription_cb)
 
         # --- Buttons ---------------------------------------------------
         btn_layout = QHBoxLayout()
@@ -180,11 +201,16 @@ class SettingsWindow(QDialog):
             if self._lang_combo.itemData(i) == self._settings.language:
                 self._lang_combo.setCurrentIndex(i)
 
-        for i in range(self._model_combo.count()):
-            if self._model_combo.itemText(i) == self._settings.whisper_model:
-                self._model_combo.setCurrentIndex(i)
+        for i in range(self._live_model_combo.count()):
+            if self._live_model_combo.itemText(i) == self._settings.live_whisper_model:
+                self._live_model_combo.setCurrentIndex(i)
+
+        for i in range(self._final_model_combo.count()):
+            if self._final_model_combo.itemText(i) == self._settings.final_whisper_model:
+                self._final_model_combo.setCurrentIndex(i)
 
         self._auto_insert_cb.setChecked(self._settings.auto_insert)
+        self._live_transcription_cb.setChecked(self._settings.live_transcription_enabled)
         self._refresh_mics()
 
     def _save(self) -> None:
@@ -192,8 +218,10 @@ class SettingsWindow(QDialog):
         self._settings.hotkey_language = self._hk_lang.text().strip()
         self._settings.language = self._lang_combo.currentData()
         self._settings.microphone_index = self._mic_combo.currentData()
-        self._settings.whisper_model = self._model_combo.currentText()
+        self._settings.live_whisper_model = self._live_model_combo.currentText()
+        self._settings.final_whisper_model = self._final_model_combo.currentText()
         self._settings.auto_insert = self._auto_insert_cb.isChecked()
+        self._settings.live_transcription_enabled = self._live_transcription_cb.isChecked()
         self._settings.save()
-        self.settings_saved.emit(self._settings)
         self.accept()
+        QTimer.singleShot(0, lambda: self.settings_saved.emit(self._settings))

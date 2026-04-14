@@ -12,7 +12,10 @@ Strategy
 
 from __future__ import annotations
 
+import threading
 import time
+
+from core.live_text import split_text_update
 
 try:
     import win32clipboard
@@ -30,6 +33,8 @@ except ImportError as exc:  # pragma: no cover
     ) from exc
 
 _PASTE_DELAY = 0.05   # seconds between clipboard write and Ctrl+V
+_DELETE_DELAY = 0.01
+_clipboard_lock = threading.RLock()
 
 
 def insert_text(text: str) -> None:
@@ -37,6 +42,29 @@ def insert_text(text: str) -> None:
     if not text:
         return
 
+    with _clipboard_lock:
+        _paste_text(text)
+
+
+def replace_text(previous_text: str, new_text: str) -> None:
+    """Replace the most recently inserted text block with *new_text*."""
+    with _clipboard_lock:
+        delete_count, insert_suffix = split_text_update(previous_text, new_text)
+        if delete_count > 0:
+            pyautogui.press("backspace", presses=delete_count, interval=_DELETE_DELAY)
+        if insert_suffix:
+            _paste_text(insert_suffix)
+
+
+def press_enter() -> None:
+    """Press the Enter key in the currently focused application."""
+    with _clipboard_lock:
+        time.sleep(0.1)  # Small delay to ensure focus
+        pyautogui.press("enter")
+        time.sleep(0.1)  # Small delay after pressing
+
+
+def _paste_text(text: str) -> None:
     previous = _get_clipboard()
     try:
         _set_clipboard(text)
@@ -47,13 +75,6 @@ def insert_text(text: str) -> None:
         time.sleep(_PASTE_DELAY)
         if previous is not None:
             _set_clipboard(previous)
-
-
-def press_enter() -> None:
-    """Press the Enter key in the currently focused application."""
-    time.sleep(0.1)  # Small delay to ensure focus
-    pyautogui.press("enter")
-    time.sleep(0.1)  # Small delay after pressing
 
 
 # ------------------------------------------------------------------

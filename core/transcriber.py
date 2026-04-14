@@ -6,6 +6,8 @@ The model is loaded lazily on first use and cached for subsequent calls.
 
 from __future__ import annotations
 
+import contextlib
+import io
 import threading
 from typing import Optional
 
@@ -35,7 +37,7 @@ class Transcriber:
         """Pre-load the Whisper model (blocking).  Call once at startup."""
         with self._lock:
             if self._model is None:
-                self._model = whisper.load_model(self._model_name)
+                self._model = self._load_model()
 
     def transcribe(
         self,
@@ -54,7 +56,7 @@ class Transcriber:
         """
         with self._lock:
             if self._model is None:
-                self._model = whisper.load_model(self._model_name)
+                self._model = self._load_model()
 
         if audio is None or len(audio) == 0:
             return ""
@@ -66,8 +68,22 @@ class Transcriber:
         )
         return result.get("text", "").strip()
 
+    def transcribe_chunk(
+        self,
+        audio: np.ndarray,
+        language: Optional[str] = None,
+    ) -> str:
+        """Transcribe a live audio chunk using the same model instance."""
+        return self.transcribe(audio, language=language)
+
     def set_model(self, model_name: str) -> None:
         """Switch model (invalidates any cached model)."""
         with self._lock:
             self._model_name = model_name
             self._model = None
+
+    def _load_model(self):
+        """Load a Whisper model without tqdm writing to a missing thread console."""
+        sink = io.StringIO()
+        with contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):
+            return whisper.load_model(self._model_name)

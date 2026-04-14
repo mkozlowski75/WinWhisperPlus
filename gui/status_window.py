@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QMoveEvent, QContextMenuEvent
-from PyQt6.QtWidgets import QLabel, QWidget, QVBoxLayout, QMenu
+from PyQt6.QtWidgets import QLabel, QWidget, QVBoxLayout, QMenu, QProgressBar
 
 _STATUS_TEXTS = {
     "ready":      "Bereit",
@@ -47,7 +47,7 @@ class StatusWindow(QWidget):
             | Qt.WindowType.WindowStaysOnTopHint
             | Qt.WindowType.Tool
         )
-        self.setFixedSize(160, 63)
+        self.setFixedSize(200, 95)
         self._layout = QVBoxLayout(self)
         self._layout.setContentsMargins(8, 4, 8, 4)
 
@@ -62,10 +62,24 @@ class StatusWindow(QWidget):
         self._hotkey_label.setStyleSheet("font-size: 11px; color: #666;")
         self._layout.addWidget(self._hotkey_label)
 
+        self._loading_label = QLabel()
+        self._loading_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._loading_label.setStyleSheet("font-size: 11px; color: #444;")
+        self._loading_label.hide()
+        self._layout.addWidget(self._loading_label)
+
+        self._progress_bar = QProgressBar()
+        self._progress_bar.setRange(0, 0)
+        self._progress_bar.setTextVisible(False)
+        self._progress_bar.setFixedHeight(10)
+        self._progress_bar.hide()
+        self._layout.addWidget(self._progress_bar)
+
         self._msg_timer = QTimer(self)
         self._msg_timer.setSingleShot(True)
         self._msg_timer.timeout.connect(self._clear_message)
         self._base_status = "ready"
+        self._loading_active = False
         self._hotkey_record = _format_hotkey(hotkey_record) if hotkey_record else ""
         self._record_action = None  # Will be created when context menu is first built
         self._update_hotkey_display()
@@ -101,6 +115,13 @@ class StatusWindow(QWidget):
             "font-size: 13px; font-weight: bold; color: #9C27B0;"
         )
         self._msg_timer.start(duration_ms)
+
+    def set_loading(self, active: bool, message: str = "Modelle laden...") -> None:
+        """Show or hide an indeterminate progress bar for background work."""
+        self._loading_active = active
+        self._loading_label.setText(message)
+        self._loading_label.setVisible(active)
+        self._progress_bar.setVisible(active)
 
     # ------------------------------------------------------------------
     # Internal

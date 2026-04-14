@@ -26,7 +26,7 @@ def test_transcribe_returns_stripped_text(mock_whisper):
     audio = np.zeros(16000, dtype=np.float32)
     result = t.transcribe(audio, language="de")
     assert result == "Hallo Welt"
-    model_mock.transcribe.assert_called_once()
+    model_mock.transcribe.assert_called_once_with(audio, language="de", fp16=False)
 
 
 def test_transcribe_empty_audio(mock_whisper):
@@ -66,3 +66,15 @@ def test_load_preloads_model(mock_whisper):
     audio = np.zeros(16000, dtype=np.float32)
     t.transcribe(audio)
     assert whisper_mock.load_model.call_count == 1
+
+
+def test_transcribe_chunk_reuses_transcribe(mock_whisper):
+    from core.transcriber import Transcriber
+    _, model_mock = mock_whisper
+    t = Transcriber(model_name="base")
+    audio = np.zeros(8000, dtype=np.float32)
+
+    result = t.transcribe_chunk(audio, language="en")
+
+    assert result == "Hallo Welt"
+    model_mock.transcribe.assert_called_once_with(audio, language="en", fp16=False)
