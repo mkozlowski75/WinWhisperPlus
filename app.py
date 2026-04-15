@@ -82,13 +82,16 @@ class Application(QObject):
         transcriber_live=None,
         transcriber_final=None,
         text_sink=None,
+        status_window=None,
+        settings=None,
     ) -> None:
         super().__init__()
         self._qapp = qapp
         self._test_mode = test_mode
         self._text_sink = text_sink   # object with insert_text/replace_text/press_enter; None → real OS calls
         self._status = ""
-        self._settings = Settings()
+        # Use pre-loaded settings from main.py if provided (avoids re-reading disk)
+        self._settings = settings if settings is not None else Settings()
         LOGGER.info(
             "App start | live_enabled=%s live_model=%s final_model=%s test_mode=%s",
             self._settings.live_transcription_enabled,
@@ -119,24 +122,46 @@ class Application(QObject):
         )
         self._insertion_worker.start()
 
-        # GUI – skipped in headless test mode
+        # GUI – skipped in headless test mode.
+        # Reuse a pre-created StatusWindow if main.py already showed one,
+        # otherwise create it here (fallback for direct instantiation in tests etc.)
         if not test_mode:
             self._tray = TrayIcon(parent=self)
-            self._status_window = StatusWindow(hotkey_record=self._settings.hotkey_record, settings=self._settings)
+            self._status_window = status_window or StatusWindow(
+                hotkey_record=self._settings.hotkey_record, settings=self._settings
+            )
             self._history_window = HistoryWindow(parent=None)
 
         self._connect_signals()
-        self._apply_settings(self._settings)
+        # NOTE: _apply_settings() is intentionally NOT called here.
+        # It is called once in start(), after the window is already visible.
 
     # ------------------------------------------------------------------
     # Setup / teardown
     # ------------------------------------------------------------------
 
     def start(self) -> None:
+        """Complete initialization and make the application ready.
+
+        When launched via main.py the StatusWindow is already visible (shown
+        before the heavy imports).  start() shows the tray icon, registers
+        hotkeys, schedules model pre-loading, and emits the "ready" signal.
+        """
         if not self._test_mode:
             self._tray.show()
-            self._status_window.load_position()
-            self._status_window.show()
+            # If the window was NOT pre-created by main.py (e.g. direct usage),
+            # show it here with the loading spinner as a fallback.
+            if not self._status_window.isVisible():
+                self._status_window.load_position()
+                self._status_window.set_loading(True, "Anwendung wird initialisiert...")
+                self._status_window.show()
+
+        # Register hotkeys, wire recorder/transcriber, schedule model pre-load.
+        self._apply_settings(self._settings)
+
+        # Hotkeys registered – clear the initialisation spinner.
+        if not self._test_mode:
+            self._status_window.set_loading(False)
         self._status_changed.emit("ready")
 
     def shutdown(self) -> None:
@@ -203,9 +228,10 @@ class Application(QObject):
             settings.final_whisper_model,
         )
         if not self._test_mode:
-            self._schedule_model_preload(delay_ms=250)
             # Update the displayed hotkey in the status window
             self._status_window.set_hotkey(settings.hotkey_record)
+            # Schedule model preloading to start after UI is ready
+            self._schedule_model_preload(delay_ms=250)
 
     def _schedule_model_preload(self, delay_ms: int) -> None:
         QTimer.singleShot(delay_ms, self._preload_models_async)
@@ -500,7 +526,11 @@ class Application(QObject):
         self._active_preloads += 1
         LOGGER.info("UI Preload gestartet | kind=%s active=%s", model_kind, self._active_preloads)
         if not self._test_mode:
-            self._status_window.set_loading(True, f"Modelle laden... ({self._active_preloads})")
+            model_name = self._settings.live_whisper_model if model_kind == "live" else self._settings.final_whisper_model
+            self._status_window.set_loading(
+                True,
+                f"Lade {model_kind}-Modell ({model_name})..."
+            )
 
     @pyqtSlot(str, bool)
     def _on_model_preload_finished(self, model_kind: str, success: bool) -> None:
@@ -514,8 +544,15 @@ class Application(QObject):
         if self._test_mode:
             return
         if self._active_preloads > 0:
-            self._status_window.set_loading(True, f"Modelle laden... ({self._active_preloads})")
+            # Still loading other models
+            remaining_model = "final" if model_kind == "live" else "live"
+            model_name = self._settings.final_whisper_model if remaining_model == "final" else self._settings.live_whisper_model
+            self._status_window.set_loading(
+                True,
+                f"Lade {remaining_model}-Modell ({model_name})..."
+            )
             return
+        # All models loaded
         self._status_window.set_loading(False)
         if not success:
             self._status_window.show_message("Modell konnte nicht geladen werden")
