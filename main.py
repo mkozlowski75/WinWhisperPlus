@@ -28,7 +28,7 @@ def main() -> None:
     settings = Settings()
     status_window = StatusWindow(hotkey_record=settings.hotkey_record, settings=settings)
     status_window.load_position()
-    status_window.set_loading(True, "Anwendung wird gestartet...")
+    status_window.set_loading(True, "Initialisierung")
     status_window.show()
     qapp.processEvents()  # Force Qt to paint the window NOW
 

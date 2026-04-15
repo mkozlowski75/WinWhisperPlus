@@ -53,19 +53,26 @@ class StatusWindow(QWidget):
         )
         self.setFixedWidth(200)
         self._layout = QVBoxLayout(self)
-        self._layout.setContentsMargins(8, 6, 8, 6)
-        self._layout.setSpacing(4)
+        self._layout.setContentsMargins(6, 4, 6, 4)
+        self._layout.setSpacing(2)
 
-        # Icon display (top)
+        # Icon and label on the same row (top)
+        from PyQt6.QtWidgets import QHBoxLayout
+        icon_and_label_layout = QHBoxLayout()
+        icon_and_label_layout.setContentsMargins(0, 0, 0, 0)
+        icon_and_label_layout.setSpacing(4)
+        
         self._icon_label = QLabel()
         self._icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._icon_label.setFixedSize(24, 24)
-        self._layout.addWidget(self._icon_label)
+        icon_and_label_layout.addWidget(self._icon_label)
 
         self._label = QLabel("Initialisierung")
         self._label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._label.setStyleSheet("font-size: 14px; font-weight: bold;")
-        self._layout.addWidget(self._label)
+        icon_and_label_layout.addWidget(self._label)
+        
+        self._layout.addLayout(icon_and_label_layout)
 
         # Second row (normal state): hotkey information.
         self._hotkey_label = QLabel()
@@ -93,7 +100,7 @@ class StatusWindow(QWidget):
         self._update_hotkey_display()
         self._update_second_line_visibility()
         self._update_icon_display(self._base_status)
-        self._recompute_height()
+        self.setFixedHeight(70)
 
     # ------------------------------------------------------------------
     # Public API
@@ -137,7 +144,6 @@ class StatusWindow(QWidget):
         self._update_second_line_visibility()
         if not self._msg_timer.isActive():
             self._refresh_primary_line()
-        self._recompute_height()
 
     # ------------------------------------------------------------------
     # Internal
@@ -166,16 +172,6 @@ class StatusWindow(QWidget):
             self._label.setStyleSheet("font-size: 12px; font-weight: bold; color: #444;")
             return
         self._apply_status(self._base_status)
-
-    def _recompute_height(self) -> None:
-        """Compute a compact height from active widgets (DPI-friendly)."""
-        margins = self._layout.contentsMargins()
-        spacing = max(self._layout.spacing(), 0)
-        top_height = self._label.sizeHint().height()
-        lower_widget = self._progress_bar if self._loading_active else self._hotkey_label
-        lower_height = lower_widget.sizeHint().height()
-        compact_height = margins.top() + top_height + spacing + lower_height + margins.bottom() + 8
-        self.setFixedHeight(max(56, compact_height))
 
     def _apply_status(self, status: str) -> None:
         text = _STATUS_TEXTS.get(status, status)
