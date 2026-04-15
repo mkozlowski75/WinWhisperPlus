@@ -49,27 +49,23 @@ class StatusWindow(QWidget):
             | Qt.WindowType.WindowStaysOnTopHint
             | Qt.WindowType.Tool
         )
-        self.setFixedSize(200, 95)
+        self.setFixedWidth(200)
         self._layout = QVBoxLayout(self)
-        self._layout.setContentsMargins(8, 4, 8, 4)
+        self._layout.setContentsMargins(8, 6, 8, 6)
+        self._layout.setSpacing(4)
 
         self._label = QLabel("Initialisierung")
         self._label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._label.setStyleSheet("font-size: 14px; font-weight: bold;")
         self._layout.addWidget(self._label)
 
-        # Secondary label for hotkey
+        # Second row (normal state): hotkey information.
         self._hotkey_label = QLabel()
         self._hotkey_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._hotkey_label.setStyleSheet("font-size: 11px; color: #666;")
         self._layout.addWidget(self._hotkey_label)
 
-        self._loading_label = QLabel()
-        self._loading_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._loading_label.setStyleSheet("font-size: 11px; color: #444;")
-        self._loading_label.hide()
-        self._layout.addWidget(self._loading_label)
-
+        # Second row (loading state): progress indicator.
         self._progress_bar = QProgressBar()
         self._progress_bar.setRange(0, 0)
         self._progress_bar.setTextVisible(False)
@@ -82,10 +78,13 @@ class StatusWindow(QWidget):
         self._msg_timer.timeout.connect(self._clear_message)
         self._base_status = "initializing"
         self._loading_active = False
+        self._loading_message = "Modelle laden..."
         self._hotkey_record = _format_hotkey(hotkey_record) if hotkey_record else ""
         self._record_action = None  # Will be created when context menu is first built
-        self._apply_status(self._base_status)
+        self._refresh_primary_line()
         self._update_hotkey_display()
+        self._update_second_line_visibility()
+        self._recompute_height()
 
     # ------------------------------------------------------------------
     # Public API
@@ -93,8 +92,8 @@ class StatusWindow(QWidget):
 
     def set_status(self, status: str) -> None:
         self._base_status = status
-        if not self._msg_timer.isActive():
-            self._apply_status(status)
+        if not self._msg_timer.isActive() and not self._loading_active:
+            self._refresh_primary_line()
         # Update context menu recording action text
         if self._record_action:
             self._record_action.setText(
@@ -120,13 +119,13 @@ class StatusWindow(QWidget):
         self._msg_timer.start(duration_ms)
 
     def set_loading(self, active: bool, message: str = "Modelle laden...") -> None:
-        """Show or hide an indeterminate progress bar for background work."""
+        """Show or hide loading mode with progress in line 2."""
         self._loading_active = active
-        self._loading_label.setText(message)
-        self._loading_label.setVisible(active)
-        self._progress_bar.setRange(0, 0)
-        self._progress_bar.setTextVisible(False)
-        self._progress_bar.setVisible(active)
+        self._loading_message = message
+        self._update_second_line_visibility()
+        if not self._msg_timer.isActive():
+            self._refresh_primary_line()
+        self._recompute_height()
 
     # ------------------------------------------------------------------
     # Internal
@@ -139,6 +138,33 @@ class StatusWindow(QWidget):
         else:
             self._hotkey_label.setText("")
 
+    def _update_second_line_visibility(self) -> None:
+        """Only one element may be visible in the second line."""
+        loading = self._loading_active
+        self._hotkey_label.setVisible(not loading)
+        self._progress_bar.setVisible(loading)
+        if loading:
+            self._progress_bar.setRange(0, 0)
+            self._progress_bar.setTextVisible(False)
+
+    def _refresh_primary_line(self) -> None:
+        """Apply current line 1 text based on message/loading/status priority."""
+        if self._loading_active:
+            self._label.setText(self._loading_message)
+            self._label.setStyleSheet("font-size: 12px; font-weight: bold; color: #444;")
+            return
+        self._apply_status(self._base_status)
+
+    def _recompute_height(self) -> None:
+        """Compute a compact height from active widgets (DPI-friendly)."""
+        margins = self._layout.contentsMargins()
+        spacing = max(self._layout.spacing(), 0)
+        top_height = self._label.sizeHint().height()
+        lower_widget = self._progress_bar if self._loading_active else self._hotkey_label
+        lower_height = lower_widget.sizeHint().height()
+        compact_height = margins.top() + top_height + spacing + lower_height + margins.bottom() + 8
+        self.setFixedHeight(max(56, compact_height))
+
     def _apply_status(self, status: str) -> None:
         text = _STATUS_TEXTS.get(status, status)
         color = _STATUS_COLORS.get(status, "#000000")
@@ -148,7 +174,7 @@ class StatusWindow(QWidget):
         )
 
     def _clear_message(self) -> None:
-        self._apply_status(self._base_status)
+        self._refresh_primary_line()
 
     def moveEvent(self, event: QMoveEvent) -> None:
         """Save window position when it moves."""
