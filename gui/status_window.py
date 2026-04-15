@@ -44,7 +44,8 @@ class StatusWindow(QWidget):
         super().__init__()
         self._settings = settings
         self.setWindowTitle("MyWhisper")
-        self.setWindowIcon(self._make_app_icon())
+        self._base_status = "initializing"
+        self.setWindowIcon(self._make_app_icon(self._base_status))
         self.setWindowFlags(
             Qt.WindowType.Window
             | Qt.WindowType.WindowStaysOnTopHint
@@ -54,6 +55,12 @@ class StatusWindow(QWidget):
         self._layout = QVBoxLayout(self)
         self._layout.setContentsMargins(8, 6, 8, 6)
         self._layout.setSpacing(4)
+
+        # Icon display (top)
+        self._icon_label = QLabel()
+        self._icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._icon_label.setFixedSize(24, 24)
+        self._layout.addWidget(self._icon_label)
 
         self._label = QLabel("Initialisierung")
         self._label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -85,6 +92,7 @@ class StatusWindow(QWidget):
         self._refresh_primary_line()
         self._update_hotkey_display()
         self._update_second_line_visibility()
+        self._update_icon_display(self._base_status)
         self._recompute_height()
 
     # ------------------------------------------------------------------
@@ -95,6 +103,9 @@ class StatusWindow(QWidget):
         self._base_status = status
         if not self._msg_timer.isActive() and not self._loading_active:
             self._refresh_primary_line()
+        # Update window and icon display with status color
+        self.setWindowIcon(self._make_app_icon(status))
+        self._update_icon_display(status)
         # Update context menu recording action text
         if self._record_action:
             self._record_action.setText(
@@ -177,10 +188,38 @@ class StatusWindow(QWidget):
     def _clear_message(self) -> None:
         self._refresh_primary_line()
 
-    def _make_app_icon(self) -> QIcon:
-        """Load microphone SVG icon for the application window."""
+    def _update_icon_display(self, status: str) -> None:
+        """Update the icon display in the window."""
+        icon = self._make_app_icon(status)
+        self._icon_label.setPixmap(icon.pixmap(24, 24))
+
+
+    def _update_icon_display(self, status: str) -> None:
+        """Update the icon display in the window."""
+        icon = self._make_app_icon(status)
+        self._icon_label.setPixmap(icon.pixmap(24, 24))
+
+    def _make_app_icon(self, status: str = "ready") -> QIcon:
+        """Create colored microphone icon for window based on status."""
         from pathlib import Path
+        from gui.tray_icon import _colorize_pixmap
+        
         asset_path = Path(__file__).parent.parent / "assets" / "icon.svg"
+        color = _STATUS_COLORS.get(status, "#4CAF50")
+        
+        # Load SVG at larger size for window icon
+        icon = QIcon()
+        svg = QPixmap(str(asset_path))
+        
+        if not svg.isNull():
+            # Add multiple sizes for better display in different contexts
+            for size in [16, 32, 64, 128]:
+                svg_scaled = svg.scaledToWidth(size, Qt.TransformationMode.SmoothTransformation)
+                svg_colored = _colorize_pixmap(svg_scaled, color)
+                icon.addPixmap(svg_colored)
+            return icon
+        
+        # Fallback: load SVG directly as QIcon
         return QIcon(str(asset_path))
 
     def moveEvent(self, event: QMoveEvent) -> None:
