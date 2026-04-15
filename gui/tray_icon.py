@@ -12,25 +12,78 @@ from __future__ import annotations
 
 from typing import Callable
 
-from PyQt6.QtCore import QObject, pyqtSignal
+from PyQt6.QtCore import QObject, pyqtSignal, Qt
 from PyQt6.QtGui import QIcon, QPixmap, QColor, QPainter, QFont
 from PyQt6.QtWidgets import QMenu, QSystemTrayIcon, QApplication
 
 
+def _colorize_pixmap(pixmap: QPixmap, target_color: str) -> QPixmap:
+    """Replace black pixels in pixmap with target color, preserving alpha."""
+    if pixmap.isNull():
+        return pixmap
+    
+    # Create a pixmap filled with target color
+    colored = QPixmap(pixmap.size())
+    colored.fill(QColor("transparent"))
+    
+    # Paint the target color using the source as alpha mask
+    painter = QPainter(colored)
+    painter.drawPixmap(0, 0, pixmap)
+    painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)
+    painter.fillRect(colored.rect(), QColor(target_color))
+    painter.end()
+    
+    return colored
+
+
 def _make_icon(color: str, label: str = "") -> QIcon:
-    """Generate a simple colored circle icon with an optional letter."""
+    """Generate a microphone icon SVG with status badge in specified color."""
+    from pathlib import Path
+    
     size = 32
+    asset_path = Path(__file__).parent.parent / "assets" / "icon.svg"
+    
+    # Load SVG and render at size
     pix = QPixmap(size, size)
     pix.fill(QColor("transparent"))
+    svg = QPixmap(str(asset_path))
+    
+    if not svg.isNull():
+        svg_scaled = svg.scaledToWidth(36, Qt.TransformationMode.SmoothTransformation)
+        # Colorize the SVG with the target color
+        svg_colored = _colorize_pixmap(svg_scaled, color)
+        painter = QPainter(pix)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        # Center SVG on pixmap
+        offset_x = (size - svg_colored.width()) // 2
+        offset_y = (size - svg_colored.height()) // 2
+        painter.drawPixmap(offset_x, offset_y, svg_colored)
+    else:
+        # Fallback: draw simple microphone if SVG not found
+        painter = QPainter(pix)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setBrush(QColor(color))
+        painter.setPen(QColor(color))
+        painter.drawRoundedRect(11, 4, 10, 14, 3, 3)
+        painter.drawRect(14, 16, 4, 8)
+    
+    # Draw status badge in bottom-right corner
+    badge_size = 10
+    badge_x = size - badge_size - 1
+    badge_y = size - badge_size - 1
     painter = QPainter(pix)
-    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
     painter.setBrush(QColor(color))
     painter.setPen(QColor("white"))
-    painter.drawEllipse(2, 2, size - 4, size - 4)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    painter.drawEllipse(badge_x, badge_y, badge_size, badge_size)
+    
+    # Optional label in badge
     if label:
-        font = QFont("Arial", 14, QFont.Weight.Bold)
+        font = QFont("Arial", 6, QFont.Weight.Bold)
         painter.setFont(font)
-        painter.drawText(pix.rect(), 0x0084, label)  # AlignCenter
+        painter.setPen(QColor("white"))
+        painter.drawText(badge_x, badge_y, badge_size, badge_size, 0x0084, label)
+    
     painter.end()
     return QIcon(pix)
 

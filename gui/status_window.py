@@ -5,7 +5,7 @@ Small always-visible status window that shows the current application state.
 from __future__ import annotations
 
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QMoveEvent, QContextMenuEvent
+from PyQt6.QtGui import QMoveEvent, QContextMenuEvent, QIcon, QPixmap, QColor, QPainter, QFont
 from PyQt6.QtWidgets import QLabel, QWidget, QVBoxLayout, QMenu, QProgressBar
 
 _STATUS_TEXTS = {
@@ -44,6 +44,7 @@ class StatusWindow(QWidget):
         super().__init__()
         self._settings = settings
         self.setWindowTitle("MyWhisper")
+        self.setWindowIcon(self._make_app_icon())
         self.setWindowFlags(
             Qt.WindowType.Window
             | Qt.WindowType.WindowStaysOnTopHint
@@ -175,6 +176,12 @@ class StatusWindow(QWidget):
 
     def _clear_message(self) -> None:
         self._refresh_primary_line()
+
+    def _make_app_icon(self) -> QIcon:
+        """Load microphone SVG icon for the application window."""
+        from pathlib import Path
+        asset_path = Path(__file__).parent.parent / "assets" / "icon.svg"
+        return QIcon(str(asset_path))
 
     def moveEvent(self, event: QMoveEvent) -> None:
         """Save window position when it moves."""
