@@ -9,6 +9,7 @@ from PyQt6.QtGui import QMoveEvent, QContextMenuEvent
 from PyQt6.QtWidgets import QLabel, QWidget, QVBoxLayout, QMenu, QProgressBar
 
 _STATUS_TEXTS = {
+    "initializing": "Initialisierung",
     "ready":      "Bereit",
     "recording":  "🔴 Aufnahme läuft",
     "processing": "⏳ Verarbeitung läuft",
@@ -16,6 +17,7 @@ _STATUS_TEXTS = {
 }
 
 _STATUS_COLORS = {
+    "initializing": "#FF9800",
     "ready":      "#4CAF50",
     "recording":  "#F44336",
     "processing": "#FF9800",
@@ -51,7 +53,7 @@ class StatusWindow(QWidget):
         self._layout = QVBoxLayout(self)
         self._layout.setContentsMargins(8, 4, 8, 4)
 
-        self._label = QLabel("Bereit")
+        self._label = QLabel("Initialisierung")
         self._label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._label.setStyleSheet("font-size: 14px; font-weight: bold;")
         self._layout.addWidget(self._label)
@@ -78,10 +80,11 @@ class StatusWindow(QWidget):
         self._msg_timer = QTimer(self)
         self._msg_timer.setSingleShot(True)
         self._msg_timer.timeout.connect(self._clear_message)
-        self._base_status = "ready"
+        self._base_status = "initializing"
         self._loading_active = False
         self._hotkey_record = _format_hotkey(hotkey_record) if hotkey_record else ""
         self._record_action = None  # Will be created when context menu is first built
+        self._apply_status(self._base_status)
         self._update_hotkey_display()
 
     # ------------------------------------------------------------------

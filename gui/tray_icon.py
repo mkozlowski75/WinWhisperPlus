@@ -39,6 +39,7 @@ def _make_icon(color: str, label: str = "") -> QIcon:
 _ICONS = {}
 
 _STATUS_LABELS = {
+    "initializing": "Initialisierung",
     "ready":      "Bereit",
     "recording":  "Aufnahme läuft",
     "processing": "Verarbeitung läuft",
@@ -51,6 +52,7 @@ def _init_icons() -> None:
     global _ICONS
     if not _ICONS:
         _ICONS = {
+            "initializing": _make_icon("#FF9800", "…"),   # orange (initializing)
             "ready":       _make_icon("#4CAF50", "M"),   # green
             "recording":   _make_icon("#F44336", "●"),   # red
             "processing":  _make_icon("#FF9800", "…"),   # orange
@@ -70,8 +72,8 @@ class TrayIcon(QObject):
         super().__init__(parent)
         _init_icons()  # Initialize icons after QApplication is created
         self._tray = QSystemTrayIcon(parent=None)
-        self._tray.setIcon(_ICONS["ready"])
-        self._tray.setToolTip("MyWhisper – Bereit")
+        self._tray.setIcon(_ICONS["initializing"])
+        self._tray.setToolTip("MyWhisper – Initialisierung")
         self._build_menu()
         self._tray.activated.connect(self._on_activated)
 

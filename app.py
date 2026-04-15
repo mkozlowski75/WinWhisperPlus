@@ -89,7 +89,7 @@ class Application(QObject):
         self._qapp = qapp
         self._test_mode = test_mode
         self._text_sink = text_sink   # object with insert_text/replace_text/press_enter; None → real OS calls
-        self._status = ""
+        self._status = "initializing"
         # Use pre-loaded settings from main.py if provided (avoids re-reading disk)
         self._settings = settings if settings is not None else Settings()
         LOGGER.info(
@@ -149,6 +149,8 @@ class Application(QObject):
         """
         if not self._test_mode:
             self._tray.show()
+            # Keep status at "initializing" until all startup work is complete.
+            self._status_changed.emit("initializing")
             # If the window was NOT pre-created by main.py (e.g. direct usage),
             # show it here with the loading spinner as a fallback.
             if not self._status_window.isVisible():
@@ -159,10 +161,9 @@ class Application(QObject):
         # Register hotkeys, wire recorder/transcriber, schedule model pre-load.
         self._apply_settings(self._settings)
 
-        # Hotkeys registered – clear the initialisation spinner.
-        if not self._test_mode:
-            self._status_window.set_loading(False)
-        self._status_changed.emit("ready")
+        # In headless tests no GUI preload runs; keep previous behavior.
+        if self._test_mode:
+            self._status_changed.emit("ready")
 
     def shutdown(self) -> None:
         self._hotkey_mgr.unregister_all()
@@ -482,7 +483,12 @@ class Application(QObject):
         if not self._test_mode:
             self._tray.set_status(status)
             self._status_window.set_status(status)
-            if status == "processing":
+            if status == "initializing":
+                if self._active_preloads > 0:
+                    self._status_window.set_loading(True, f"Modelle laden... ({self._active_preloads})")
+                else:
+                    self._status_window.set_loading(True, "Anwendung wird initialisiert...")
+            elif status == "processing":
                 self._status_window.set_loading(True, "Verarbeitung läuft...")
             elif self._active_preloads > 0:
                 self._status_window.set_loading(True, f"Modelle laden... ({self._active_preloads})")
@@ -556,6 +562,7 @@ class Application(QObject):
         self._status_window.set_loading(False)
         if not success:
             self._status_window.show_message("Modell konnte nicht geladen werden")
+        self._status_changed.emit("ready")
 
     @pyqtSlot(str)
     def _on_partial_transcription_done(self, text: str) -> None:
