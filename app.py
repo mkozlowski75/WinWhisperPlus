@@ -456,6 +456,12 @@ class Application(QObject):
         if not self._test_mode:
             self._tray.set_status(status)
             self._status_window.set_status(status)
+            if status == "processing":
+                self._status_window.set_loading(True, "Verarbeitung läuft...")
+            elif self._active_preloads > 0:
+                self._status_window.set_loading(True, f"Modelle laden... ({self._active_preloads})")
+            else:
+                self._status_window.set_loading(False)
 
     @pyqtSlot(str)
     def _on_transcription_done(self, text: str) -> None:
