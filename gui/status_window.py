@@ -121,6 +121,8 @@ class StatusWindow(QWidget):
         self._loading_active = active
         self._loading_label.setText(message)
         self._loading_label.setVisible(active)
+        self._progress_bar.setRange(0, 0)
+        self._progress_bar.setTextVisible(False)
         self._progress_bar.setVisible(active)
 
     # ------------------------------------------------------------------
