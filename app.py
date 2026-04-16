@@ -27,6 +27,7 @@ from PyQt6.QtWidgets import QApplication
 from config.settings import LANGUAGES, Settings
 from core.hotkey_manager import HotkeyManager
 from core.live_text import extract_enter_command, merge_live_tail
+from core.emoji_enricher import enrich_with_emojis
 from core.recorder import Recorder, SAMPLE_RATE, list_microphones
 from core.statistics import StatisticsStore
 from core.text_inserter import insert_text, press_enter, replace_text
@@ -562,6 +563,8 @@ class Application(QObject):
             if len(self._history) > self._max_history:
                 self._history = self._history[-self._max_history:]
         final_text, should_press_enter = extract_enter_command(text)
+        if self._settings.emoji_mode_enabled:
+            final_text = enrich_with_emojis(final_text, language=self._settings.language)
         if self._settings.auto_insert:
             if self._settings.live_transcription_enabled:
                 self._queue_replace(self._rendered_live_text, final_text)

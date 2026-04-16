@@ -24,6 +24,7 @@ DEFAULT_SETTINGS = {
     "live_stable_window_seconds": 4.0,
     "window_position_x": None,  # x coordinate of status window
     "window_position_y": None,  # y coordinate of status window
+    "emoji_mode_enabled": False,
 }
 
 LANGUAGES = {
@@ -191,6 +192,14 @@ class Settings:
     @property
     def live_stable_window_seconds(self) -> float:
         return float(self._data["live_stable_window_seconds"])
+
+    @property
+    def emoji_mode_enabled(self) -> bool:
+        return bool(self._data["emoji_mode_enabled"])
+
+    @emoji_mode_enabled.setter
+    def emoji_mode_enabled(self, value: bool) -> None:
+        self._data["emoji_mode_enabled"] = bool(value)
 
     def cycle_language(self) -> str:
         """Switch to the next language in the cycle and return its code."""

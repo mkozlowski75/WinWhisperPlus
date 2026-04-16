@@ -165,6 +165,14 @@ class SettingsWindow(QDialog):
         )
         root.addWidget(self._live_transcription_cb)
 
+        self._emoji_mode_cb = QCheckBox(
+            "Emoji-Modus (Text mit passenden Emojis anreichern 🎉)"
+        )
+        self._emoji_mode_cb.setToolTip(
+            "Bekannte Schlüsselwörter im transkribierten Text werden mit passenden Emojis ergänzt."
+        )
+        root.addWidget(self._emoji_mode_cb)
+
         # --- Buttons ---------------------------------------------------
         btn_layout = QHBoxLayout()
         save_btn = QPushButton("Speichern / Save")
@@ -217,6 +225,7 @@ class SettingsWindow(QDialog):
 
         self._auto_insert_cb.setChecked(self._settings.auto_insert)
         self._live_transcription_cb.setChecked(self._settings.live_transcription_enabled)
+        self._emoji_mode_cb.setChecked(self._settings.emoji_mode_enabled)
         self._refresh_mics()
 
     def _save(self) -> None:
@@ -229,6 +238,7 @@ class SettingsWindow(QDialog):
         self._settings.final_whisper_model = self._final_model_combo.currentText()
         self._settings.auto_insert = self._auto_insert_cb.isChecked()
         self._settings.live_transcription_enabled = self._live_transcription_cb.isChecked()
+        self._settings.emoji_mode_enabled = self._emoji_mode_cb.isChecked()
         self._settings.save()
         self.accept()
         QTimer.singleShot(0, lambda: self.settings_saved.emit(self._settings))
