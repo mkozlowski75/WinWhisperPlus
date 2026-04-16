@@ -7,6 +7,7 @@ A Windows speech-recognition tool powered by OpenAI Whisper running entirely loc
 
 - 🎤 **Speech-to-Text** – Converts microphone input to text using OpenAI Whisper (local, no cloud).
 - 🌍 **Language support** – German (Deutsch), Polish (Polski), English.
+- 🗂️ **Localized interface** – UI available in German, Polish, and English independently from dictation language.
 - ⌨️ **System-wide hotkeys** – Configurable hotkeys to start/stop recording and cycle languages.
 - 📋 **Auto-insert** – Transcribed text is automatically pasted into the currently active input field.
 - ⚡ **Live mode** – Optional near real-time transcription inserts stable partial text while you are still speaking.
@@ -54,6 +55,7 @@ Click **Einstellungen…** in the tray menu to open the settings dialog where yo
 
 - Change hotkeys by clicking the field and pressing the desired key combination.
 - Select the default language (Deutsch / Polski / English).
+- Select the interface language (Deutsch / Polski / English).
 - Choose a specific microphone from the dropdown.
 - Select the Whisper model size (`tiny` → `large`; larger = more accurate but slower).
 - Enable live transcription if you want stable partial text to be inserted during an active recording.

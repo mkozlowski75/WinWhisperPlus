@@ -24,7 +24,8 @@ from pathlib import Path
 from PyQt6.QtCore import QObject, QTimer, pyqtSignal, pyqtSlot
 from PyQt6.QtWidgets import QApplication
 
-from config.settings import LANGUAGES, Settings
+from config.localization import localized_spoken_language_name, tr
+from config.settings import Settings
 from core.hotkey_manager import HotkeyManager
 from core.live_text import extract_enter_command, merge_live_tail
 from core.emoji_enricher import enrich_with_emojis
@@ -46,17 +47,21 @@ def _build_logger() -> logging.Logger:
 
     app_data = os.environ.get("APPDATA") or str(Path.home())
     log_dir = Path(app_data) / "MyWhisper"
-    log_dir.mkdir(parents=True, exist_ok=True)
-    log_file = log_dir / "mywhisper.log"
-
-    handler = logging.FileHandler(log_file, encoding="utf-8")
-    formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(threadName)s %(message)s")
-    handler.setFormatter(formatter)
-
     logger.setLevel(logging.INFO)
-    logger.addHandler(handler)
     logger.propagate = False
-    logger.info("Logger initialisiert: %s", log_file)
+
+    formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(threadName)s %(message)s")
+    try:
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_file = log_dir / "mywhisper.log"
+        handler = logging.FileHandler(log_file, encoding="utf-8")
+    except OSError:
+        handler = logging.NullHandler()
+        log_file = None
+
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.info("Logger initialisiert: %s", log_file or "<null>")
     return logger
 
 
@@ -138,12 +143,12 @@ class Application(QObject):
         # Reuse a pre-created StatusWindow if main.py already showed one,
         # otherwise create it here (fallback for direct instantiation in tests etc.)
         if not test_mode:
-            self._tray = TrayIcon(parent=self)
+            self._tray = TrayIcon(parent=self, settings=self._settings)
             self._status_window = status_window or StatusWindow(
                 hotkey_record=self._settings.hotkey_record, settings=self._settings
             )
-            self._history_window = HistoryWindow(parent=None)
-            self._statistics_window = StatisticsWindow(parent=None)
+            self._history_window = HistoryWindow(parent=None, settings=self._settings)
+            self._statistics_window = StatisticsWindow(parent=None, settings=self._settings)
 
         self._connect_signals()
         # NOTE: _apply_settings() is intentionally NOT called here.
@@ -168,7 +173,7 @@ class Application(QObject):
             # show it here with the loading spinner as a fallback.
             if not self._status_window.isVisible():
                 self._status_window.load_position()
-                self._status_window.set_loading(True, "Anwendung wird initialisiert...")
+                self._status_window.set_loading(True, tr("loading_app", self._settings))
                 self._status_window.show()
 
         # Register hotkeys, wire recorder/transcriber, schedule model pre-load.
@@ -246,6 +251,10 @@ class Application(QObject):
         if not self._test_mode:
             # Update the displayed hotkey in the status window
             self._status_window.set_hotkey(settings.hotkey_record)
+            self._status_window.retranslate_ui()
+            self._tray.retranslate_ui(self._status)
+            self._history_window.retranslate_ui()
+            self._statistics_window.retranslate_ui()
             # Schedule model preloading to start after UI is ready
             self._schedule_model_preload(delay_ms=250)
 
@@ -519,8 +528,8 @@ class Application(QObject):
         lang = self._settings.cycle_language()
         self._settings.save()
         if not self._test_mode:
-            lang_name = LANGUAGES.get(lang, lang)
-            self._status_window.show_message(f"Sprache: {lang_name}")
+            lang_name = localized_spoken_language_name(lang, self._settings)
+            self._status_window.show_message(tr("language_message", self._settings, language=lang_name))
 
     # ------------------------------------------------------------------
     # Slots (always run on the Qt main thread via signal)
@@ -534,13 +543,19 @@ class Application(QObject):
             self._status_window.set_status(status)
             if status == "initializing":
                 if self._active_preloads > 0:
-                    self._status_window.set_loading(True, f"Modelle laden... ({self._active_preloads})")
+                    self._status_window.set_loading(
+                        True,
+                        tr("loading_models", self._settings, count=self._active_preloads),
+                    )
                 else:
-                    self._status_window.set_loading(True, "Anwendung wird initialisiert...")
+                    self._status_window.set_loading(True, tr("loading_app", self._settings))
             elif status == "processing":
-                self._status_window.set_loading(True, "Verarbeitung läuft...")
+                self._status_window.set_loading(True, tr("processing", self._settings))
             elif self._active_preloads > 0:
-                self._status_window.set_loading(True, f"Modelle laden... ({self._active_preloads})")
+                self._status_window.set_loading(
+                    True,
+                    tr("loading_models", self._settings, count=self._active_preloads),
+                )
             else:
                 self._status_window.set_loading(False)
 
@@ -587,7 +602,7 @@ class Application(QObject):
         self._recording_started_at = None
         self._last_recording_duration_seconds = 0.0
         if not self._test_mode:
-            self._status_window.show_message("Transkription fehlgeschlagen. Siehe Logdatei.")
+            self._status_window.show_message(tr("transcription_failed", self._settings))
         self._status_changed.emit("ready")
 
     @pyqtSlot(str)
@@ -596,9 +611,10 @@ class Application(QObject):
         LOGGER.info("UI Preload gestartet | kind=%s active=%s", model_kind, self._active_preloads)
         if not self._test_mode:
             model_name = self._settings.live_whisper_model if model_kind == "live" else self._settings.final_whisper_model
+            model_kind_label = tr(f"model_kind_{model_kind}", self._settings)
             self._status_window.set_loading(
                 True,
-                f"Lade {model_kind}-Modell ({model_name})..."
+                tr("loading_model_kind", self._settings, model_kind=model_kind_label, model_name=model_name)
             )
 
     @pyqtSlot(str, bool)
@@ -616,15 +632,16 @@ class Application(QObject):
             # Still loading other models
             remaining_model = "final" if model_kind == "live" else "live"
             model_name = self._settings.final_whisper_model if remaining_model == "final" else self._settings.live_whisper_model
+            model_kind_label = tr(f"model_kind_{remaining_model}", self._settings)
             self._status_window.set_loading(
                 True,
-                f"Lade {remaining_model}-Modell ({model_name})..."
+                tr("loading_model_kind", self._settings, model_kind=model_kind_label, model_name=model_name)
             )
             return
         # All models loaded
         self._status_window.set_loading(False)
         if not success:
-            self._status_window.show_message("Modell konnte nicht geladen werden")
+            self._status_window.show_message(tr("model_load_failed", self._settings))
         self._status_changed.emit("ready")
 
     @pyqtSlot(str)

@@ -13,6 +13,7 @@ import sys
 # the heavy modules (whisper, sounddevice, keyboard) are loaded.
 from PyQt6.QtWidgets import QApplication
 
+from config.localization import tr
 from config.settings import Settings
 from gui.status_window import StatusWindow
 
@@ -28,7 +29,7 @@ def main() -> None:
     settings = Settings()
     status_window = StatusWindow(hotkey_record=settings.hotkey_record, settings=settings)
     status_window.load_position()
-    status_window.set_loading(True, "Initialisierung")
+    status_window.set_loading(True, tr("initializing", settings))
     status_window.show()
     qapp.processEvents()  # Force Qt to paint the window NOW
 

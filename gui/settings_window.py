@@ -24,7 +24,8 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QKeySequence
 
-from config.settings import LANGUAGES, LANGUAGE_CYCLE, Settings
+from config.localization import UI_LANGUAGES, localized_spoken_language_name, tr
+from config.settings import LANGUAGE_CYCLE, UI_LANGUAGE_CYCLE, Settings
 from core.recorder import list_microphones
 
 if TYPE_CHECKING:
@@ -75,7 +76,7 @@ class SettingsWindow(QDialog):
     def __init__(self, settings: Settings, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._settings = settings
-        self.setWindowTitle("MyWhisper – Einstellungen / Settings")
+        self.setWindowTitle(tr("settings_title", self._settings))
         self.setMinimumWidth(420)
         self._build_ui()
         self._populate()
@@ -88,50 +89,48 @@ class SettingsWindow(QDialog):
         root = QVBoxLayout(self)
 
         # --- Hotkeys ---------------------------------------------------
-        hk_group = QGroupBox("Hotkeys")
-        hk_form = QFormLayout(hk_group)
+        self._hk_group = QGroupBox()
+        hk_form = QFormLayout(self._hk_group)
+        self._hk_form = hk_form
 
         self._hk_record = HotkeyEdit()
-        self._hk_record.setToolTip(
-            "Klicken und gewünschte Tastenkombination drücken"
-        )
-        hk_form.addRow("Aufnahme starten/stoppen:", self._hk_record)
+        hk_form.addRow("", self._hk_record)
 
         self._hk_lang = HotkeyEdit()
-        self._hk_lang.setToolTip(
-            "Klicken und gewünschte Tastenkombination drücken"
-        )
-        hk_form.addRow("Sprache umschalten:", self._hk_lang)
-        root.addWidget(hk_group)
+        hk_form.addRow("", self._hk_lang)
+        root.addWidget(self._hk_group)
 
         # --- Language --------------------------------------------------
-        lang_group = QGroupBox("Standardsprache / Default Language")
-        lang_layout = QHBoxLayout(lang_group)
+        self._lang_group = QGroupBox()
+        lang_layout = QHBoxLayout(self._lang_group)
         self._lang_combo = QComboBox()
-        for code in LANGUAGE_CYCLE:
-            self._lang_combo.addItem(LANGUAGES[code], code)
         lang_layout.addWidget(self._lang_combo)
-        root.addWidget(lang_group)
+        root.addWidget(self._lang_group)
+
+        self._ui_lang_group = QGroupBox()
+        ui_lang_layout = QHBoxLayout(self._ui_lang_group)
+        self._ui_lang_combo = QComboBox()
+        ui_lang_layout.addWidget(self._ui_lang_combo)
+        root.addWidget(self._ui_lang_group)
 
         # --- Microphone ------------------------------------------------
-        mic_group = QGroupBox("Mikrofon / Microphone")
-        mic_layout = QHBoxLayout(mic_group)
+        self._mic_group = QGroupBox()
+        mic_layout = QHBoxLayout(self._mic_group)
         self._mic_combo = QComboBox()
-        self._refresh_mics()
         mic_layout.addWidget(self._mic_combo)
-        refresh_btn = QPushButton("↺")
-        refresh_btn.setFixedWidth(30)
-        refresh_btn.setToolTip("Geräteliste aktualisieren")
-        refresh_btn.clicked.connect(self._refresh_mics)
-        mic_layout.addWidget(refresh_btn)
-        root.addWidget(mic_group)
+        self._refresh_btn = QPushButton("↺")
+        self._refresh_btn.setFixedWidth(30)
+        self._refresh_btn.clicked.connect(self._refresh_mics)
+        mic_layout.addWidget(self._refresh_btn)
+        root.addWidget(self._mic_group)
 
         # --- Models ----------------------------------------------------
-        model_group = QGroupBox("Whisper-Modelle")
-        model_layout = QVBoxLayout(model_group)
+        self._model_group = QGroupBox()
+        model_layout = QVBoxLayout(self._model_group)
 
         live_row = QHBoxLayout()
-        live_row.addWidget(QLabel("Live (schnell):"))
+        self._live_model_label = QLabel()
+        live_row.addWidget(self._live_model_label)
         self._live_model_combo = QComboBox()
         for m in ["tiny", "base"]:
             self._live_model_combo.addItem(m)
@@ -139,61 +138,96 @@ class SettingsWindow(QDialog):
         model_layout.addLayout(live_row)
 
         final_row = QHBoxLayout()
-        final_row.addWidget(QLabel("Final (genau):"))
+        self._final_model_label = QLabel()
+        final_row.addWidget(self._final_model_label)
         self._final_model_combo = QComboBox()
         for m in WHISPER_MODELS:
             self._final_model_combo.addItem(m)
         final_row.addWidget(self._final_model_combo)
         model_layout.addLayout(final_row)
 
-        model_layout.addWidget(
-            QLabel("Live: tiny/base empfohlen ohne NVIDIA GPU")
-        )
-        root.addWidget(model_group)
+        self._model_note = QLabel()
+        model_layout.addWidget(self._model_note)
+        root.addWidget(self._model_group)
 
         # --- Auto insert -----------------------------------------------
-        self._auto_insert_cb = QCheckBox(
-            "Text automatisch einfügen (Ctrl+V)"
-        )
+        self._auto_insert_cb = QCheckBox()
         root.addWidget(self._auto_insert_cb)
 
-        self._live_transcription_cb = QCheckBox(
-            "Laufende Erkennung und laufendes Einfügen aktivieren"
-        )
-        self._live_transcription_cb.setToolTip(
-            "Während der Aufnahme werden stabile Zwischenstände laufend eingefügt."
-        )
+        self._live_transcription_cb = QCheckBox()
         root.addWidget(self._live_transcription_cb)
 
-        self._emoji_mode_cb = QCheckBox(
-            "Emoji-Modus (Text mit passenden Emojis anreichern 🎉)"
-        )
-        self._emoji_mode_cb.setToolTip(
-            "Bekannte Schlüsselwörter im transkribierten Text werden mit passenden Emojis ergänzt."
-        )
+        self._emoji_mode_cb = QCheckBox()
         root.addWidget(self._emoji_mode_cb)
 
         # --- Buttons ---------------------------------------------------
         btn_layout = QHBoxLayout()
-        save_btn = QPushButton("Speichern / Save")
-        save_btn.setDefault(True)
-        save_btn.clicked.connect(self._save)
-        cancel_btn = QPushButton("Abbrechen / Cancel")
-        cancel_btn.clicked.connect(self.reject)
+        self._save_btn = QPushButton()
+        self._save_btn.setDefault(True)
+        self._save_btn.clicked.connect(self._save)
+        self._cancel_btn = QPushButton()
+        self._cancel_btn.clicked.connect(self.reject)
         btn_layout.addStretch()
-        btn_layout.addWidget(save_btn)
-        btn_layout.addWidget(cancel_btn)
+        btn_layout.addWidget(self._save_btn)
+        btn_layout.addWidget(self._cancel_btn)
         root.addLayout(btn_layout)
+        self.retranslate_ui()
 
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
 
+    def retranslate_ui(self) -> None:
+        """Refresh UI strings for the current interface language."""
+        self.setWindowTitle(tr("settings_title", self._settings))
+        self._hk_group.setTitle(tr("group_hotkeys", self._settings))
+        self._hk_record.setToolTip(tr("tooltip_press_hotkey", self._settings))
+        self._hk_lang.setToolTip(tr("tooltip_press_hotkey", self._settings))
+        self._hk_form.setWidget(0, QFormLayout.ItemRole.LabelRole, QLabel(tr("hotkey_record", self._settings)))
+        self._hk_form.setWidget(1, QFormLayout.ItemRole.LabelRole, QLabel(tr("hotkey_language", self._settings)))
+        self._lang_group.setTitle(tr("group_language", self._settings))
+        self._ui_lang_group.setTitle(tr("group_ui_language", self._settings))
+        self._mic_group.setTitle(tr("group_microphone", self._settings))
+        self._refresh_btn.setToolTip(tr("refresh_devices", self._settings))
+        self._model_group.setTitle(tr("group_models", self._settings))
+        self._live_model_label.setText(tr("live_model", self._settings))
+        self._final_model_label.setText(tr("final_model", self._settings))
+        self._model_note.setText(tr("model_note", self._settings))
+        self._auto_insert_cb.setText(tr("auto_insert", self._settings))
+        self._live_transcription_cb.setText(tr("live_transcription", self._settings))
+        self._live_transcription_cb.setToolTip(tr("live_transcription_tooltip", self._settings))
+        self._emoji_mode_cb.setText(tr("emoji_mode", self._settings))
+        self._emoji_mode_cb.setToolTip(tr("emoji_mode_tooltip", self._settings))
+        self._save_btn.setText(tr("save", self._settings))
+        self._cancel_btn.setText(tr("cancel", self._settings))
+        self._rebuild_language_combos()
+        self._refresh_mics()
+
+    def _rebuild_language_combos(self) -> None:
+        current_language = self._settings.language
+        current_ui_language = self._settings.ui_language
+
+        self._lang_combo.clear()
+        for code in LANGUAGE_CYCLE:
+            self._lang_combo.addItem(localized_spoken_language_name(code, self._settings), code)
+        for i in range(self._lang_combo.count()):
+            if self._lang_combo.itemData(i) == current_language:
+                self._lang_combo.setCurrentIndex(i)
+                break
+
+        self._ui_lang_combo.clear()
+        for code in UI_LANGUAGE_CYCLE:
+            self._ui_lang_combo.addItem(UI_LANGUAGES[code], code)
+        for i in range(self._ui_lang_combo.count()):
+            if self._ui_lang_combo.itemData(i) == current_ui_language:
+                self._ui_lang_combo.setCurrentIndex(i)
+                break
+
     def _refresh_mics(self) -> None:
         current_index = self._settings.microphone_index
         current_name = self._settings.microphone_name
         self._mic_combo.clear()
-        self._mic_combo.addItem("System-Standard / Default", None)
+        self._mic_combo.addItem(tr("microphone_default", self._settings), None)
         for mic in list_microphones():
             self._mic_combo.addItem(mic["name"], mic["index"])
         # Restore selection by index first, then by name as fallback.
@@ -215,6 +249,10 @@ class SettingsWindow(QDialog):
             if self._lang_combo.itemData(i) == self._settings.language:
                 self._lang_combo.setCurrentIndex(i)
 
+        for i in range(self._ui_lang_combo.count()):
+            if self._ui_lang_combo.itemData(i) == self._settings.ui_language:
+                self._ui_lang_combo.setCurrentIndex(i)
+
         for i in range(self._live_model_combo.count()):
             if self._live_model_combo.itemText(i) == self._settings.live_whisper_model:
                 self._live_model_combo.setCurrentIndex(i)
@@ -232,6 +270,7 @@ class SettingsWindow(QDialog):
         self._settings.hotkey_record = self._hk_record.text().strip()
         self._settings.hotkey_language = self._hk_lang.text().strip()
         self._settings.language = self._lang_combo.currentData()
+        self._settings.ui_language = self._ui_lang_combo.currentData()
         self._settings.microphone_index = self._mic_combo.currentData()
         self._settings.microphone_name = None if self._mic_combo.currentIndex() == 0 else self._mic_combo.currentText()
         self._settings.live_whisper_model = self._live_model_combo.currentText()

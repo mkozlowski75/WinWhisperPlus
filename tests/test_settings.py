@@ -25,6 +25,7 @@ def test_default_settings():
     assert s.hotkey_record == "ctrl+alt+h"
     assert s.hotkey_language == "alt+shift+s"
     assert s.language == "de"
+    assert s.ui_language == "de"
     assert s.microphone_index is None
     assert s.microphone_name is None
     assert s.whisper_model == "base"
@@ -37,6 +38,7 @@ def test_default_settings():
 def test_save_and_reload(tmp_path):
     s = _make_settings()
     s.language = "pl"
+    s.ui_language = "en"
     s.hotkey_record = "ctrl+shift+r"
     s.microphone_index = 2
     s.microphone_name = "USB Microphone"
@@ -44,6 +46,7 @@ def test_save_and_reload(tmp_path):
 
     s2 = _make_settings()
     assert s2.language == "pl"
+    assert s2.ui_language == "en"
     assert s2.hotkey_record == "ctrl+shift+r"
     assert s2.microphone_index == 2
     assert s2.microphone_name == "USB Microphone"
@@ -64,6 +67,12 @@ def test_invalid_language_ignored():
     s = _make_settings()
     s.language = "xx"
     assert s.language == "de"  # unchanged
+
+
+def test_invalid_ui_language_ignored():
+    s = _make_settings()
+    s.ui_language = "xx"
+    assert s.ui_language == "de"
 
 
 def test_corrupted_json_falls_back_to_defaults(tmp_path):

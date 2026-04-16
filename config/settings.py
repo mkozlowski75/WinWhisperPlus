@@ -11,6 +11,7 @@ DEFAULT_SETTINGS = {
     "hotkey_record": "ctrl+alt+h",
     "hotkey_language": "alt+shift+s",
     "language": "de",           # 'de', 'pl', 'en'
+    "ui_language": "de",        # 'de', 'pl', 'en'
     "microphone_index": None,   # None = system default
     "microphone_name": None,    # Fallback when device indices change
     "whisper_model": "base",    # legacy alias for final_whisper_model
@@ -34,6 +35,7 @@ LANGUAGES = {
 }
 
 LANGUAGE_CYCLE = ["de", "pl", "en"]
+UI_LANGUAGE_CYCLE = ["de", "pl", "en"]
 
 
 def _config_path() -> Path:
@@ -103,6 +105,15 @@ class Settings:
     def language(self, value: str) -> None:
         if value in LANGUAGE_CYCLE:
             self._data["language"] = value
+
+    @property
+    def ui_language(self) -> str:
+        return self._data["ui_language"]
+
+    @ui_language.setter
+    def ui_language(self, value: str) -> None:
+        if value in UI_LANGUAGE_CYCLE:
+            self._data["ui_language"] = value
 
     @property
     def microphone_index(self):

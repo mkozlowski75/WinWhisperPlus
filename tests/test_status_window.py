@@ -4,6 +4,7 @@ import pytest
 
 from PyQt6.QtWidgets import QApplication
 
+from config.settings import Settings
 from gui.status_window import StatusWindow
 
 
@@ -60,5 +61,17 @@ def test_message_clear_while_loading_restores_loading_text(qapp):
     assert window._label.text() == "Modelle laden..."
     assert not window._progress_bar.isHidden()
     assert window._hotkey_label.isHidden()
+
+    window.close()
+
+
+def test_english_ui_translates_status_and_hotkey_label(qapp):
+    settings = Settings()
+    settings.ui_language = "en"
+    window = StatusWindow(hotkey_record="ctrl+alt+h", settings=settings)
+    window.set_status("ready")
+
+    assert window._label.text() == "Ready"
+    assert "Hotkey:" in window._hotkey_label.text()
 
     window.close()

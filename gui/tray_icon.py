@@ -16,6 +16,8 @@ from PyQt6.QtCore import QObject, pyqtSignal, Qt
 from PyQt6.QtGui import QIcon, QPixmap, QColor, QPainter, QFont
 from PyQt6.QtWidgets import QMenu, QSystemTrayIcon, QApplication
 
+from config.localization import tr
+
 
 def _colorize_pixmap(pixmap: QPixmap, target_color: str) -> QPixmap:
     """Replace black pixels in pixmap with target color, preserving alpha."""
@@ -91,15 +93,6 @@ def _make_icon(color: str, label: str = "") -> QIcon:
 # Status colours - lazy initialization to avoid QPixmap before QApplication
 _ICONS = {}
 
-_STATUS_LABELS = {
-    "initializing": "Initialisierung",
-    "ready":      "Bereit",
-    "recording":  "Aufnahme läuft",
-    "processing": "Verarbeitung läuft",
-    "inserted":   "Text eingefügt",
-}
-
-
 def _init_icons() -> None:
     """Initialize icons after QApplication is created."""
     global _ICONS
@@ -122,13 +115,19 @@ class TrayIcon(QObject):
     open_statistics_requested = pyqtSignal()
     quit_requested = pyqtSignal()
 
-    def __init__(self, parent: QObject | None = None) -> None:
+    def __init__(self, parent: QObject | None = None, settings=None) -> None:
         super().__init__(parent)
+        self._settings = settings
         _init_icons()  # Initialize icons after QApplication is created
         self._tray = QSystemTrayIcon(parent=None)
         self._tray.setIcon(_ICONS["initializing"])
-        self._tray.setToolTip("MyWhisper – Initialisierung")
+        self._record_action = None
+        self._history_action = None
+        self._statistics_action = None
+        self._settings_action = None
+        self._quit_action = None
         self._build_menu()
+        self.retranslate_ui("initializing")
         self._tray.activated.connect(self._on_activated)
 
     # ------------------------------------------------------------------
@@ -144,12 +143,24 @@ class TrayIcon(QObject):
     def set_status(self, status: str) -> None:
         """Update icon and tooltip to reflect *status*."""
         icon = _ICONS.get(status, _ICONS["ready"])
-        label = _STATUS_LABELS.get(status, status)
+        label = tr(status, self._settings)
         self._tray.setIcon(icon)
-        self._tray.setToolTip(f"MyWhisper – {label}")
+        self._tray.setToolTip(f'{tr("app_name", self._settings)} - {label}')
         self._record_action.setText(
-            "Aufnahme stoppen" if status == "recording" else "Aufnahme starten"
+            tr("record_stop", self._settings) if status == "recording" else tr("record_start", self._settings)
         )
+
+    def retranslate_ui(self, status: str = "ready") -> None:
+        """Refresh all translated tray strings."""
+        if self._history_action is not None:
+            self._history_action.setText(tr("history", self._settings))
+        if self._statistics_action is not None:
+            self._statistics_action.setText(tr("statistics", self._settings))
+        if self._settings_action is not None:
+            self._settings_action.setText(tr("settings", self._settings))
+        if self._quit_action is not None:
+            self._quit_action.setText(tr("quit", self._settings))
+        self.set_status(status)
 
     # ------------------------------------------------------------------
     # Internal
@@ -158,24 +169,24 @@ class TrayIcon(QObject):
     def _build_menu(self) -> None:
         menu = QMenu()
 
-        self._record_action = menu.addAction("Aufnahme starten")
+        self._record_action = menu.addAction(tr("record_start", self._settings))
         self._record_action.triggered.connect(self.toggle_recording_requested)
 
         menu.addSeparator()
 
-        history_action = menu.addAction("Verlauf…")
-        history_action.triggered.connect(self.open_history_requested)
+        self._history_action = menu.addAction(tr("history", self._settings))
+        self._history_action.triggered.connect(self.open_history_requested)
 
-        statistics_action = menu.addAction("Statistiken…")
-        statistics_action.triggered.connect(self.open_statistics_requested)
+        self._statistics_action = menu.addAction(tr("statistics", self._settings))
+        self._statistics_action.triggered.connect(self.open_statistics_requested)
 
-        settings_action = menu.addAction("Einstellungen…")
-        settings_action.triggered.connect(self.open_settings_requested)
+        self._settings_action = menu.addAction(tr("settings", self._settings))
+        self._settings_action.triggered.connect(self.open_settings_requested)
 
         menu.addSeparator()
 
-        quit_action = menu.addAction("Beenden")
-        quit_action.triggered.connect(self.quit_requested)
+        self._quit_action = menu.addAction(tr("quit", self._settings))
+        self._quit_action.triggered.connect(self.quit_requested)
 
         self._tray.setContextMenu(menu)
 

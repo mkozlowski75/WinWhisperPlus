@@ -13,22 +13,25 @@ from PyQt6.QtWidgets import (
     QPushButton, QLabel
 )
 
+from config.localization import tr
+
 
 class HistoryWindow(QDialog):
     """Modal dialog showing transcription history."""
 
     text_selected = pyqtSignal(str)  # Emitted when user selects a text to re-insert
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, parent: QWidget | None = None, settings=None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Transkriptions-Verlauf")
+        self._settings = settings
+        self.setWindowTitle(tr("history_title", self._settings))
         self.setGeometry(100, 100, 600, 400)
         
         layout = QVBoxLayout(self)
         
         # Title
-        title = QLabel("Zuletzt erkannte Texte:")
-        layout.addWidget(title)
+        self._title = QLabel()
+        layout.addWidget(self._title)
         
         # History list
         self._list = QListWidget()
@@ -38,19 +41,20 @@ class HistoryWindow(QDialog):
         # Buttons
         button_layout = QHBoxLayout()
         
-        self._insert_btn = QPushButton("Einfügen")
+        self._insert_btn = QPushButton()
         self._insert_btn.clicked.connect(self._on_insert)
         self._insert_btn.setEnabled(False)
         button_layout.addWidget(self._insert_btn)
-        
-        close_btn = QPushButton("Schließen")
-        close_btn.clicked.connect(self.close)
-        button_layout.addWidget(close_btn)
+
+        self._close_btn = QPushButton()
+        self._close_btn.clicked.connect(self.close)
+        button_layout.addWidget(self._close_btn)
         
         layout.addLayout(button_layout)
         
         # Connect selection changes
         self._list.itemSelectionChanged.connect(self._on_selection_changed)
+        self.retranslate_ui()
 
     # ------------------------------------------------------------------
     # Public API
@@ -64,6 +68,13 @@ class HistoryWindow(QDialog):
                 item = QListWidgetItem(text)
                 item.setData(Qt.ItemDataRole.UserRole, text)
                 self._list.addItem(item)
+
+    def retranslate_ui(self) -> None:
+        """Refresh UI strings for the current interface language."""
+        self.setWindowTitle(tr("history_title", self._settings))
+        self._title.setText(tr("history_header", self._settings))
+        self._insert_btn.setText(tr("insert", self._settings))
+        self._close_btn.setText(tr("close", self._settings))
 
     # ------------------------------------------------------------------
     # Internal

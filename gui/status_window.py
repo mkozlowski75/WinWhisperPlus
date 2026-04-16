@@ -8,13 +8,7 @@ from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QMoveEvent, QContextMenuEvent, QIcon, QPixmap, QColor, QPainter, QFont
 from PyQt6.QtWidgets import QLabel, QWidget, QVBoxLayout, QMenu, QProgressBar
 
-_STATUS_TEXTS = {
-    "initializing": "Initialisierung",
-    "ready":      "Bereit",
-    "recording":  "🔴 Aufnahme läuft",
-    "processing": "⏳ Verarbeitung läuft",
-    "inserted":   "✅ Text eingefügt",
-}
+from config.localization import tr
 
 _STATUS_COLORS = {
     "initializing": "#FF9800",
@@ -44,7 +38,7 @@ class StatusWindow(QWidget):
     def __init__(self, hotkey_record: str = "", settings=None) -> None:
         super().__init__()
         self._settings = settings
-        self.setWindowTitle("MyWhisper")
+        self.setWindowTitle(tr("app_name", self._settings))
         self._base_status = "initializing"
         self.setWindowIcon(self._make_app_icon(self._base_status))
         self.setWindowFlags(
@@ -68,7 +62,7 @@ class StatusWindow(QWidget):
         self._icon_label.setFixedSize(24, 24)
         icon_and_label_layout.addWidget(self._icon_label)
 
-        self._label = QLabel("Initialisierung")
+        self._label = QLabel(tr("initializing", self._settings))
         self._label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._label.setStyleSheet("font-size: 14px; font-weight: bold;")
         icon_and_label_layout.addWidget(self._label)
@@ -94,7 +88,7 @@ class StatusWindow(QWidget):
         self._msg_timer.timeout.connect(self._clear_message)
         self._base_status = "initializing"
         self._loading_active = False
-        self._loading_message = "Modelle laden..."
+        self._loading_message = tr("loading_models_generic", self._settings)
         self._hotkey_record = _format_hotkey(hotkey_record) if hotkey_record else ""
         self._record_action = None  # Will be created when context menu is first built
         self._refresh_primary_line()
@@ -117,7 +111,7 @@ class StatusWindow(QWidget):
         # Update context menu recording action text
         if self._record_action:
             self._record_action.setText(
-                "Aufnahme stoppen" if status == "recording" else "Aufnahme starten"
+                tr("record_stop", self._settings) if status == "recording" else tr("record_start", self._settings)
             )
 
     def set_hotkey(self, hotkey_record: str) -> None:
@@ -138,13 +132,24 @@ class StatusWindow(QWidget):
         )
         self._msg_timer.start(duration_ms)
 
-    def set_loading(self, active: bool, message: str = "Modelle laden...") -> None:
+    def set_loading(self, active: bool, message: str | None = None) -> None:
         """Show or hide loading mode with progress in line 2."""
         self._loading_active = active
-        self._loading_message = message
+        self._loading_message = message or tr("loading_models_generic", self._settings)
         self._update_second_line_visibility()
         if not self._msg_timer.isActive():
             self._refresh_primary_line()
+
+    def retranslate_ui(self) -> None:
+        """Refresh all translated UI strings."""
+        self.setWindowTitle(tr("app_name", self._settings))
+        if not self._msg_timer.isActive():
+            self._refresh_primary_line()
+        self._update_hotkey_display()
+        if self._record_action:
+            self._record_action.setText(
+                tr("record_stop", self._settings) if self._base_status == "recording" else tr("record_start", self._settings)
+            )
 
     # ------------------------------------------------------------------
     # Internal
@@ -153,7 +158,7 @@ class StatusWindow(QWidget):
     def _update_hotkey_display(self) -> None:
         """Update the hotkey display label."""
         if self._hotkey_record:
-            self._hotkey_label.setText(f"Hotkey: {self._hotkey_record}")
+            self._hotkey_label.setText(tr("hotkey_label", self._settings, hotkey=self._hotkey_record))
         else:
             self._hotkey_label.setText("")
 
@@ -175,7 +180,7 @@ class StatusWindow(QWidget):
         self._apply_status(self._base_status)
 
     def _apply_status(self, status: str) -> None:
-        text = _STATUS_TEXTS.get(status, status)
+        text = tr(status, self._settings)
         color = _STATUS_COLORS.get(status, "#000000")
         self._label.setText(text)
         self._label.setStyleSheet(
@@ -184,12 +189,6 @@ class StatusWindow(QWidget):
 
     def _clear_message(self) -> None:
         self._refresh_primary_line()
-
-    def _update_icon_display(self, status: str) -> None:
-        """Update the icon display in the window."""
-        icon = self._make_app_icon(status)
-        self._icon_label.setPixmap(icon.pixmap(24, 24))
-
 
     def _update_icon_display(self, status: str) -> None:
         """Update the icon display in the window."""
@@ -237,29 +236,29 @@ class StatusWindow(QWidget):
         menu = QMenu(self)
         
         # Recording action
-        self._record_action = menu.addAction("Aufnahme starten")
+        self._record_action = menu.addAction(tr("record_start", self._settings))
         self._record_action.triggered.connect(self.toggle_recording_requested.emit)
         
         # Separator
         menu.addSeparator()
         
         # History action
-        history_action = menu.addAction("Verlauf…")
+        history_action = menu.addAction(tr("history", self._settings))
         history_action.triggered.connect(self.open_history_requested.emit)
 
         # Statistics action
-        statistics_action = menu.addAction("Statistiken…")
+        statistics_action = menu.addAction(tr("statistics", self._settings))
         statistics_action.triggered.connect(self.open_statistics_requested.emit)
         
         # Settings action
-        settings_action = menu.addAction("Einstellungen…")
+        settings_action = menu.addAction(tr("settings", self._settings))
         settings_action.triggered.connect(self.open_settings_requested.emit)
         
         # Separator
         menu.addSeparator()
         
         # Quit action
-        quit_action = menu.addAction("Beenden")
+        quit_action = menu.addAction(tr("quit", self._settings))
         quit_action.triggered.connect(self.quit_requested.emit)
         
         return menu
