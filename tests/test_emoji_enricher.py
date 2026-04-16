@@ -97,3 +97,18 @@ class TestEnrichWithEmojis:
         polish_scoped = enrich_with_emojis("Kawa i coffee.", language="pl")
         assert "Kawa ☕" in polish_scoped
         assert "coffee ☕" not in polish_scoped
+
+    def test_german_plural_keywords_are_enriched(self):
+        result = enrich_with_emojis("Supermärkte und Häuser sind heute voll.", language="de")
+        assert "Supermärkte 🛒" in result
+        assert "Häuser 🏠" in result
+
+    def test_english_plural_keywords_are_enriched(self):
+        result = enrich_with_emojis("Hospitals and supermarkets are busy.", language="en")
+        assert "Hospitals 🏥" in result
+        assert "supermarkets 🛒" in result
+
+    def test_polish_plural_keywords_are_enriched(self):
+        result = enrich_with_emojis("Szpitale i sklepy są otwarte.", language="pl")
+        assert "Szpitale 🏥" in result
+        assert "sklepy 🛒" in result
