@@ -1,4 +1,4 @@
-' MyWhisper - Start ohne Konsolenfenster
+' WinWhisperPlus - Start ohne Konsolenfenster
 ' Dieses Skript startet die Anwendung, ohne ein Kommandozeilenfenster zu zeigen
 
 Set objShell = CreateObject("WScript.Shell")

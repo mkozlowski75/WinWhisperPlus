@@ -41,19 +41,19 @@ from gui.status_window import StatusWindow
 
 
 def _build_logger() -> logging.Logger:
-    logger = logging.getLogger("mywhisper")
+    logger = logging.getLogger("winwhisperplus")
     if logger.handlers:
         return logger
 
     app_data = os.environ.get("APPDATA") or str(Path.home())
-    log_dir = Path(app_data) / "MyWhisper"
+    log_dir = Path(app_data) / "WinWhisperPlus"
     logger.setLevel(logging.INFO)
     logger.propagate = False
 
     formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(threadName)s %(message)s")
     try:
         log_dir.mkdir(parents=True, exist_ok=True)
-        log_file = log_dir / "mywhisper.log"
+        log_file = log_dir / "winwhisperplus.log"
         handler = logging.FileHandler(log_file, encoding="utf-8")
     except OSError:
         handler = logging.NullHandler()

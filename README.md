@@ -1,4 +1,4 @@
-# MyWhisper
+# WinWhisperPlus
 
 Ein Windows-Tool zur lokalen Spracherkennung auf Basis von OpenAI Whisper.  
 A Windows speech-recognition tool powered by OpenAI Whisper running entirely locally.
@@ -69,8 +69,8 @@ The optional live mode keeps the current push-to-talk workflow, but starts trans
 - Spoken `enter` is only executed on the final result so partial hypotheses do not trigger unwanted line breaks.
 - For the best latency, `tiny` or `base` are recommended in live mode.
 
-Settings are saved to `%APPDATA%\MyWhisper\settings.json`.
-Statistics are saved to `%APPDATA%\MyWhisper\statistics.json`.
+Settings are saved to `%APPDATA%\WinWhisperPlus\settings.json`.
+Statistics are saved to `%APPDATA%\WinWhisperPlus\statistics.json`.
 
 ## Running Tests
 
@@ -82,7 +82,7 @@ pytest tests/
 ## Architecture
 
 ```
-MyWhisper/
+WinWhisperPlus/
 ├── main.py                  # Entry point
 ├── app.py                   # Application orchestrator
 ├── config/

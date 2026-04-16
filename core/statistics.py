@@ -11,7 +11,7 @@ from pathlib import Path
 
 def _statistics_path() -> Path:
     app_data = os.environ.get("APPDATA") or Path.home()
-    stats_dir = Path(app_data) / "MyWhisper"
+    stats_dir = Path(app_data) / "WinWhisperPlus"
     stats_dir.mkdir(parents=True, exist_ok=True)
     return stats_dir / "statistics.json"
 

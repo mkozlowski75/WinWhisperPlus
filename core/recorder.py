@@ -19,7 +19,7 @@ except ImportError as exc:  # pragma: no cover
 
 SAMPLE_RATE = 16_000   # Hz – Whisper expects 16 kHz
 CHANNELS = 1
-LOGGER = logging.getLogger("mywhisper")
+LOGGER = logging.getLogger("winwhisperplus")
 
 
 class Recorder:

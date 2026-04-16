@@ -1,5 +1,5 @@
 """
-Settings management for MyWhisper.
+Settings management for WinWhisperPlus.
 Persists configuration to a JSON file in the user's AppData directory.
 """
 
@@ -41,7 +41,7 @@ UI_LANGUAGE_CYCLE = ["de", "pl", "en"]
 def _config_path() -> Path:
     """Return path to the JSON settings file."""
     app_data = os.environ.get("APPDATA") or Path.home()
-    config_dir = Path(app_data) / "MyWhisper"
+    config_dir = Path(app_data) / "WinWhisperPlus"
     config_dir.mkdir(parents=True, exist_ok=True)
     return config_dir / "settings.json"
 

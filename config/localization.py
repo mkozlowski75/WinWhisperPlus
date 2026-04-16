@@ -1,4 +1,4 @@
-"""Simple UI localization helpers for MyWhisper."""
+"""Simple UI localization helpers for WinWhisperPlus."""
 
 from __future__ import annotations
 
@@ -12,8 +12,8 @@ UI_LANGUAGES = {
 
 _TRANSLATIONS: dict[str, dict[str, str]] = {
     "de": {
-        "app_name": "MyWhisper",
-        "app_title_initializing": "MyWhisper - Initialisierung",
+        "app_name": "WinWhisperPlus",
+        "app_title_initializing": "WinWhisperPlus - Initialisierung",
         "initializing": "Initialisierung",
         "ready": "Bereit",
         "recording": "Aufnahme läuft",
@@ -34,7 +34,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "transcription_failed": "Transkription fehlgeschlagen. Siehe Logdatei.",
         "language_message": "Sprache: {language}",
         "ui_language_message": "Oberfläche: {language}",
-        "settings_title": "MyWhisper - Einstellungen",
+        "settings_title": "WinWhisperPlus - Einstellungen",
         "group_hotkeys": "Hotkeys",
         "tooltip_press_hotkey": "Klicken und gewünschte Tastenkombination drücken",
         "hotkey_record": "Aufnahme starten/stoppen:",
@@ -77,8 +77,8 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "language_name_en": "English",
     },
     "pl": {
-        "app_name": "MyWhisper",
-        "app_title_initializing": "MyWhisper - Inicjalizacja",
+        "app_name": "WinWhisperPlus",
+        "app_title_initializing": "WinWhisperPlus - Inicjalizacja",
         "initializing": "Inicjalizacja",
         "ready": "Gotowe",
         "recording": "Nagrywanie trwa",
@@ -99,7 +99,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "transcription_failed": "Transkrypcja nie powiodła się. Sprawdź plik logu.",
         "language_message": "Język: {language}",
         "ui_language_message": "Interfejs: {language}",
-        "settings_title": "MyWhisper - Ustawienia",
+        "settings_title": "WinWhisperPlus - Ustawienia",
         "group_hotkeys": "Skróty klawiszowe",
         "tooltip_press_hotkey": "Kliknij i naciśnij wybraną kombinację klawiszy",
         "hotkey_record": "Start/stop nagrywania:",
@@ -142,8 +142,8 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "language_name_en": "Angielski",
     },
     "en": {
-        "app_name": "MyWhisper",
-        "app_title_initializing": "MyWhisper - Initializing",
+        "app_name": "WinWhisperPlus",
+        "app_title_initializing": "WinWhisperPlus - Initializing",
         "initializing": "Initializing",
         "ready": "Ready",
         "recording": "Recording",
@@ -164,7 +164,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "transcription_failed": "Transcription failed. See log file.",
         "language_message": "Language: {language}",
         "ui_language_message": "Interface: {language}",
-        "settings_title": "MyWhisper - Settings",
+        "settings_title": "WinWhisperPlus - Settings",
         "group_hotkeys": "Hotkeys",
         "tooltip_press_hotkey": "Click and press the desired key combination",
         "hotkey_record": "Start/stop recording:",
