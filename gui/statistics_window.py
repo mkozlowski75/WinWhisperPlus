@@ -52,7 +52,7 @@ class StatisticsWindow(QDialog):
         table = QTableWidget()
         table.setColumnCount(4)
         table.setHorizontalHeaderLabels(
-            [period_label, "Anzahl Starts", "Gesamt (Sek.)", "Durchschnitt (Sek.)"]
+            [period_label, "Anzahl Starts", "Gesamt", "Durchschnitt"]
         )
         table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
@@ -65,8 +65,23 @@ class StatisticsWindow(QDialog):
         for idx, row in enumerate(rows):
             table.setItem(idx, 0, QTableWidgetItem(str(row.get("period", ""))))
             table.setItem(idx, 1, QTableWidgetItem(str(int(row.get("count", 0)))))
-            table.setItem(idx, 2, QTableWidgetItem(f"{float(row.get('total_seconds', 0.0)):.1f}"))
-            table.setItem(idx, 3, QTableWidgetItem(f"{float(row.get('avg_seconds', 0.0)):.1f}"))
+            table.setItem(
+                idx,
+                2,
+                QTableWidgetItem(self._format_seconds_hhmmss(float(row.get("total_seconds", 0.0)))),
+            )
+            table.setItem(
+                idx,
+                3,
+                QTableWidgetItem(self._format_seconds_hhmmss(float(row.get("avg_seconds", 0.0)))),
+            )
 
         header = table.horizontalHeader()
         header.setStretchLastSection(True)
+
+    def _format_seconds_hhmmss(self, seconds: float) -> str:
+        total = max(0, int(round(seconds)))
+        hours = total // 3600
+        minutes = (total % 3600) // 60
+        secs = total % 60
+        return f"{hours:02d}:{minutes:02d}:{secs:02d}"
