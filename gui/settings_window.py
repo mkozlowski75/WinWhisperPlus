@@ -183,15 +183,21 @@ class SettingsWindow(QDialog):
 
     def _refresh_mics(self) -> None:
         current_index = self._settings.microphone_index
+        current_name = self._settings.microphone_name
         self._mic_combo.clear()
         self._mic_combo.addItem("System-Standard / Default", None)
         for mic in list_microphones():
             self._mic_combo.addItem(mic["name"], mic["index"])
-        # Restore selection
+        # Restore selection by index first, then by name as fallback.
         for i in range(self._mic_combo.count()):
             if self._mic_combo.itemData(i) == current_index:
                 self._mic_combo.setCurrentIndex(i)
                 return
+        if current_name:
+            for i in range(self._mic_combo.count()):
+                if self._mic_combo.itemText(i) == current_name:
+                    self._mic_combo.setCurrentIndex(i)
+                    return
 
     def _populate(self) -> None:
         self._hk_record.setText(self._settings.hotkey_record)
@@ -218,6 +224,7 @@ class SettingsWindow(QDialog):
         self._settings.hotkey_language = self._hk_lang.text().strip()
         self._settings.language = self._lang_combo.currentData()
         self._settings.microphone_index = self._mic_combo.currentData()
+        self._settings.microphone_name = None if self._mic_combo.currentIndex() == 0 else self._mic_combo.currentText()
         self._settings.live_whisper_model = self._live_model_combo.currentText()
         self._settings.final_whisper_model = self._final_model_combo.currentText()
         self._settings.auto_insert = self._auto_insert_cb.isChecked()

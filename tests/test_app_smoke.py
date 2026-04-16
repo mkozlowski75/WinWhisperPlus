@@ -86,6 +86,29 @@ class TestStartup:
         app.start()
         assert app.get_history() == []
 
+    def test_microphone_index_is_restored_from_name(self, qapp, monkeypatch):
+        app, _, _ = _make_app(qapp)
+        app._settings.microphone_index = 9
+        app._settings.microphone_name = "Mikrofon 2"
+        monkeypatch.setattr(app._settings, "save", lambda: None)
+
+        import app as app_module
+
+        monkeypatch.setattr(
+            app_module,
+            "list_microphones",
+            lambda: [
+                {"index": 3, "name": "Mikrofon 2"},
+                {"index": 4, "name": "Mikrofon 3"},
+            ],
+        )
+
+        resolved_index = app._resolve_microphone_index(app._settings)
+
+        assert resolved_index == 3
+        assert app._settings.microphone_index == 3
+        assert app._settings.microphone_name == "Mikrofon 2"
+
 
 # ---------------------------------------------------------------------------
 # Test: Normal (non-live) record → stop → final transcription
@@ -136,6 +159,19 @@ class TestFinalTranscription:
             app.wait_for_idle(timeout_sec=8)
 
         assert len(app.get_history()) == 3
+
+    def test_successful_transcription_records_statistics(self, qapp):
+        app, _, _ = _make_app(qapp, transcribe_text="stat test")
+        app.start()
+
+        app._toggle_recording()
+        app._toggle_recording()
+        app.wait_for_idle(timeout_sec=8)
+
+        day_rows = app._statistics.get_aggregates("day")
+        assert len(day_rows) == 1
+        assert day_rows[0]["count"] == 1
+        assert day_rows[0]["total_seconds"] > 0.0
 
 # ---------------------------------------------------------------------------
 # Test: Stop does not hang
@@ -199,6 +235,19 @@ class TestErrorRecovery:
         app._toggle_recording()
 
         assert app.wait_for_idle(timeout_sec=8), "App hung after transcriber exception"
+
+    def test_failed_transcription_does_not_record_statistics(self, qapp):
+        app, _, _ = _make_app(
+            qapp,
+            transcriber_raise=RuntimeError("no model"),
+        )
+        app.start()
+
+        app._toggle_recording()
+        app._toggle_recording()
+        app.wait_for_idle(timeout_sec=8)
+
+        assert app._statistics.get_aggregates("day") == []
 
 
 # ---------------------------------------------------------------------------

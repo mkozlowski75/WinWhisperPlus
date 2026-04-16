@@ -12,6 +12,7 @@ DEFAULT_SETTINGS = {
     "hotkey_language": "alt+shift+s",
     "language": "de",           # 'de', 'pl', 'en'
     "microphone_index": None,   # None = system default
+    "microphone_name": None,    # Fallback when device indices change
     "whisper_model": "base",    # legacy alias for final_whisper_model
     "live_whisper_model": "tiny",
     "final_whisper_model": "base",
@@ -109,6 +110,14 @@ class Settings:
     @microphone_index.setter
     def microphone_index(self, value) -> None:
         self._data["microphone_index"] = value
+
+    @property
+    def microphone_name(self):
+        return self._data["microphone_name"]
+
+    @microphone_name.setter
+    def microphone_name(self, value) -> None:
+        self._data["microphone_name"] = value
 
     @property
     def window_position_x(self):

@@ -18,6 +18,7 @@ import os
 import queue
 import threading
 import time
+from datetime import datetime
 from pathlib import Path
 
 from PyQt6.QtCore import QObject, QTimer, pyqtSignal, pyqtSlot
@@ -26,10 +27,12 @@ from PyQt6.QtWidgets import QApplication
 from config.settings import LANGUAGES, Settings
 from core.hotkey_manager import HotkeyManager
 from core.live_text import extract_enter_command, merge_live_tail
-from core.recorder import Recorder, SAMPLE_RATE
+from core.recorder import Recorder, SAMPLE_RATE, list_microphones
+from core.statistics import StatisticsStore
 from core.text_inserter import insert_text, press_enter, replace_text
 from core.transcriber import Transcriber
 from gui.history_window import HistoryWindow
+from gui.statistics_window import StatisticsWindow
 from gui.settings_window import SettingsWindow
 from gui.tray_icon import TrayIcon
 from gui.status_window import StatusWindow
@@ -70,6 +73,7 @@ class Application(QObject):
     _model_preload_started = pyqtSignal(str)
     _model_preload_finished = pyqtSignal(str, bool)
     _open_history_requested = pyqtSignal()
+    _open_statistics_requested = pyqtSignal()
     _toggle_recording_requested = pyqtSignal()
     _cycle_language_requested = pyqtSignal()
 
@@ -84,6 +88,7 @@ class Application(QObject):
         text_sink=None,
         status_window=None,
         settings=None,
+        statistics_store=None,
     ) -> None:
         super().__init__()
         self._qapp = qapp
@@ -92,6 +97,9 @@ class Application(QObject):
         self._status = "initializing"
         # Use pre-loaded settings from main.py if provided (avoids re-reading disk)
         self._settings = settings if settings is not None else Settings()
+        self._statistics = (
+            statistics_store if statistics_store is not None else StatisticsStore(persist=not test_mode)
+        )
         LOGGER.info(
             "App start | live_enabled=%s live_model=%s final_model=%s test_mode=%s",
             self._settings.live_transcription_enabled,
@@ -114,6 +122,9 @@ class Application(QObject):
         self._rendered_live_text = ""
         self._last_live_emit_at = 0.0
         self._active_preloads = 0
+        self._recording_started_at: datetime | None = None
+        self._last_recording_duration_seconds = 0.0
+        self._pending_stats_session = False
         self._recorder = self._build_recorder(self._settings)
 
         self._insertion_worker = threading.Thread(
@@ -131,6 +142,7 @@ class Application(QObject):
                 hotkey_record=self._settings.hotkey_record, settings=self._settings
             )
             self._history_window = HistoryWindow(parent=None)
+            self._statistics_window = StatisticsWindow(parent=None)
 
         self._connect_signals()
         # NOTE: _apply_settings() is intentionally NOT called here.
@@ -184,12 +196,14 @@ class Application(QObject):
             self._tray.toggle_recording_requested.connect(self._toggle_recording)
             self._tray.open_settings_requested.connect(self._open_settings)
             self._tray.open_history_requested.connect(self._open_history)
+            self._tray.open_statistics_requested.connect(self._open_statistics)
             self._tray.quit_requested.connect(self._quit)
 
             # Connect StatusWindow signals to same handlers as TrayIcon
             self._status_window.toggle_recording_requested.connect(self._toggle_recording)
             self._status_window.open_settings_requested.connect(self._open_settings)
             self._status_window.open_history_requested.connect(self._open_history)
+            self._status_window.open_statistics_requested.connect(self._open_statistics)
             self._status_window.quit_requested.connect(self._quit)
 
             self._history_window.text_selected.connect(self._on_history_text_selected)
@@ -265,16 +279,45 @@ class Application(QObject):
 
     def _build_recorder(self, settings: Settings) -> Recorder:
         on_chunk = self._on_audio_chunk if settings.live_transcription_enabled else None
+        resolved_device_index = self._resolve_microphone_index(settings)
         if self._injected_recorder is not None:
             # Wire live callback onto the injected recorder instead of creating a new one
             self._injected_recorder._on_chunk = on_chunk
             return self._injected_recorder
         return Recorder(
-            device_index=settings.microphone_index,
+            device_index=resolved_device_index,
             on_chunk=on_chunk,
             chunk_seconds=settings.live_chunk_seconds,
             overlap_seconds=settings.live_overlap_seconds,
         )
+
+    def _resolve_microphone_index(self, settings: Settings):
+        requested_index = settings.microphone_index
+        requested_name = settings.microphone_name
+        if requested_index is None and not requested_name:
+            return None
+
+        microphones = list_microphones()
+        by_index = {mic["index"]: mic["name"] for mic in microphones}
+
+        if requested_index in by_index:
+            current_name = by_index[requested_index]
+            if settings.microphone_name != current_name:
+                settings.microphone_name = current_name
+                settings.save()
+            return requested_index
+
+        if requested_name:
+            for mic in microphones:
+                if mic["name"] == requested_name:
+                    settings.microphone_index = mic["index"]
+                    settings.save()
+                    return mic["index"]
+
+        settings.microphone_index = None
+        settings.microphone_name = None
+        settings.save()
+        return None
 
     def _open_settings(self) -> None:
         dlg = SettingsWindow(self._settings)
@@ -298,6 +341,9 @@ class Application(QObject):
             self._status_window.raise_()
             self._status_window.showNormal()
         LOGGER.info("Aufnahme gestartet")
+        self._recording_started_at = datetime.now()
+        self._last_recording_duration_seconds = 0.0
+        self._pending_stats_session = False
         self._reset_live_session()
         if self._settings.live_transcription_enabled:
             self._start_live_worker(self._settings.language)
@@ -308,6 +354,8 @@ class Application(QObject):
         LOGGER.info("Aufnahme wird gestoppt")
         audio = self._recorder.stop()
         LOGGER.info("Audio gestoppt | samples=%s", len(audio))
+        self._last_recording_duration_seconds = len(audio) / SAMPLE_RATE if len(audio) else 0.0
+        self._pending_stats_session = True
         self._status_changed.emit("processing")
         self._stop_live_worker()
         language = self._settings.language
@@ -498,6 +546,15 @@ class Application(QObject):
     @pyqtSlot(str)
     def _on_transcription_done(self, text: str) -> None:
         LOGGER.info("Transkription empfangen | chars=%s", len(text or ""))
+        if self._pending_stats_session and self._recording_started_at is not None:
+            self._statistics.record_session(
+                started_at=self._recording_started_at,
+                duration_seconds=self._last_recording_duration_seconds,
+                language=self._settings.language,
+            )
+        self._pending_stats_session = False
+        self._recording_started_at = None
+        self._last_recording_duration_seconds = 0.0
         # Save to history
         if text and text.strip():
             self._history.append(text)
@@ -523,6 +580,9 @@ class Application(QObject):
     @pyqtSlot(str)
     def _on_transcription_failed(self, message: str) -> None:
         LOGGER.error("Transkription fehlgeschlagen | %s", message)
+        self._pending_stats_session = False
+        self._recording_started_at = None
+        self._last_recording_duration_seconds = 0.0
         if not self._test_mode:
             self._status_window.show_message("Transkription fehlgeschlagen. Siehe Logdatei.")
         self._status_changed.emit("ready")
@@ -604,6 +664,18 @@ class Application(QObject):
         if not self._test_mode:
             self._history_window.set_history(self._history)
             self._history_window.show()
+
+    @pyqtSlot()
+    def _open_statistics(self) -> None:
+        """Show statistics window with period aggregates."""
+        if not self._test_mode:
+            self._statistics_window.set_data(
+                day_rows=self._statistics.get_aggregates("day"),
+                week_rows=self._statistics.get_aggregates("week"),
+                month_rows=self._statistics.get_aggregates("month"),
+            )
+            self._statistics_window.show()
+            self._statistics_window.raise_()
 
     @pyqtSlot(str)
     def _on_history_text_selected(self, text: str) -> None:
