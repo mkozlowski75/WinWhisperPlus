@@ -18,6 +18,10 @@ _STATUS_COLORS = {
     "inserted":   "#2196F3",
 }
 
+_PRIMARY_FONT_SIZE = 12
+_PRIMARY_MESSAGE_FONT_SIZE = 11
+_SECONDARY_FONT_SIZE = 10
+
 
 def _format_hotkey(hotkey: str) -> str:
     """Convert hotkey format from 'alt+shift+r' to 'Alt+Shift+R'."""
@@ -46,16 +50,17 @@ class StatusWindow(QWidget):
             | Qt.WindowType.WindowStaysOnTopHint
             | Qt.WindowType.Tool
         )
-        self.setFixedWidth(200)
+        self.setFixedSize(130, 60)
         self._layout = QVBoxLayout(self)
-        self._layout.setContentsMargins(6, 4, 6, 4)
+        self._layout.setContentsMargins(4, 4, 4, 4)
         self._layout.setSpacing(2)
 
         # Icon and label on the same row (top)
         from PyQt6.QtWidgets import QHBoxLayout
         icon_and_label_layout = QHBoxLayout()
         icon_and_label_layout.setContentsMargins(0, 0, 0, 0)
-        icon_and_label_layout.setSpacing(4)
+        icon_and_label_layout.setSpacing(3)
+        icon_and_label_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         
         self._icon_label = QLabel()
         self._icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -63,8 +68,10 @@ class StatusWindow(QWidget):
         icon_and_label_layout.addWidget(self._icon_label)
 
         self._label = QLabel(tr("initializing", self._settings))
-        self._label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._label.setStyleSheet("font-size: 14px; font-weight: bold;")
+        self._label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
+        self._label.setWordWrap(True)
+        self._label.setFixedSize(82, 34)
+        self._label.setStyleSheet(f"font-size: {_PRIMARY_FONT_SIZE}px; font-weight: bold;")
         icon_and_label_layout.addWidget(self._label)
         
         self._layout.addLayout(icon_and_label_layout)
@@ -72,7 +79,8 @@ class StatusWindow(QWidget):
         # Second row (normal state): hotkey information.
         self._hotkey_label = QLabel()
         self._hotkey_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._hotkey_label.setStyleSheet("font-size: 11px; color: #666;")
+        self._hotkey_label.setFixedHeight(12)
+        self._hotkey_label.setStyleSheet(f"font-size: {_SECONDARY_FONT_SIZE}px; color: #666;")
         self._layout.addWidget(self._hotkey_label)
 
         # Second row (loading state): progress indicator.
@@ -95,7 +103,6 @@ class StatusWindow(QWidget):
         self._update_hotkey_display()
         self._update_second_line_visibility()
         self._update_icon_display(self._base_status)
-        self.setFixedHeight(70)
 
     # ------------------------------------------------------------------
     # Public API
@@ -128,7 +135,7 @@ class StatusWindow(QWidget):
         """Show a temporary overlay message for *duration_ms* milliseconds."""
         self._label.setText(message)
         self._label.setStyleSheet(
-            "font-size: 13px; font-weight: bold; color: #9C27B0;"
+            f"font-size: {_PRIMARY_MESSAGE_FONT_SIZE}px; font-weight: bold; color: #9C27B0;"
         )
         self._msg_timer.start(duration_ms)
 
@@ -136,6 +143,9 @@ class StatusWindow(QWidget):
         """Show or hide loading mode with progress in line 2."""
         self._loading_active = active
         self._loading_message = message or tr("loading_models_generic", self._settings)
+        icon_status = "processing" if active else self._base_status
+        self.setWindowIcon(self._make_app_icon(icon_status))
+        self._update_icon_display(icon_status)
         self._update_second_line_visibility()
         if not self._msg_timer.isActive():
             self._refresh_primary_line()
@@ -158,7 +168,7 @@ class StatusWindow(QWidget):
     def _update_hotkey_display(self) -> None:
         """Update the hotkey display label."""
         if self._hotkey_record:
-            self._hotkey_label.setText(tr("hotkey_label", self._settings, hotkey=self._hotkey_record))
+            self._hotkey_label.setText(self._hotkey_record)
         else:
             self._hotkey_label.setText("")
 
@@ -175,7 +185,7 @@ class StatusWindow(QWidget):
         """Apply current line 1 text based on message/loading/status priority."""
         if self._loading_active:
             self._label.setText(self._loading_message)
-            self._label.setStyleSheet("font-size: 12px; font-weight: bold; color: #444;")
+            self._label.setStyleSheet(f"font-size: {_PRIMARY_FONT_SIZE}px; font-weight: bold; color: #FF9800;")
             return
         self._apply_status(self._base_status)
 
@@ -184,7 +194,7 @@ class StatusWindow(QWidget):
         color = _STATUS_COLORS.get(status, "#000000")
         self._label.setText(text)
         self._label.setStyleSheet(
-            f"font-size: 14px; font-weight: bold; color: {color};"
+            f"font-size: {_PRIMARY_FONT_SIZE}px; font-weight: bold; color: {color};"
         )
 
     def _clear_message(self) -> None:

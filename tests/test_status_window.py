@@ -18,9 +18,11 @@ def test_default_state_shows_hotkey_not_progress(qapp):
     window = StatusWindow(hotkey_record="ctrl+alt+h")
 
     assert not window._hotkey_label.isHidden()
-    assert "Hotkey:" in window._hotkey_label.text()
+    assert window._hotkey_label.text() == "Ctrl+Alt+H"
     assert window._progress_bar.isHidden()
-    assert window.height() < 95
+    assert window._label.wordWrap()
+    assert window.width() == 130
+    assert window.height() == 60
 
     window.close()
 
@@ -72,6 +74,6 @@ def test_english_ui_translates_status_and_hotkey_label(qapp):
     window.set_status("ready")
 
     assert window._label.text() == "Ready"
-    assert "Hotkey:" in window._hotkey_label.text()
+    assert window._hotkey_label.text() == "Ctrl+Alt+H"
 
     window.close()
