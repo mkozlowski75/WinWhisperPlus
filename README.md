@@ -49,7 +49,7 @@ release package. They only need to unzip the package and start
 `WinWhisperPlus.exe`.
 
 Build the release package on a Windows development machine with Python 3.10 to
-3.14 64-bit and Inno Setup 6 installed:
+3.14 64-bit and Inno Setup 7 or 6 installed:
 
 ```powershell
 .\scripts\build-release.ps1

@@ -19,6 +19,7 @@ $appDistDir = Join-Path $distDir "WinWhisperPlus"
 $appExePath = Join-Path $appDistDir "WinWhisperPlus.exe"
 $zipPath = Join-Path $distDir "WinWhisperPlus.zip"
 $installerScriptPath = Join-Path $repoRoot "installer\WinWhisperPlus.iss"
+$installerBaseExePath = Join-Path $distDir "WinWhisperPlus-Setup.exe"
 $versionFilePath = Join-Path $repoRoot "VERSION"
 $pythonVersionArgs = @("-3.14", "-3.13", "-3.12", "-3.11", "-3.10")
 
@@ -80,6 +81,8 @@ function Resolve-InnoSetupCompiler {
     }
 
     $candidatePaths = @(
+        "${env:ProgramFiles(x86)}\Inno Setup 7\ISCC.exe",
+        "${env:ProgramFiles}\Inno Setup 7\ISCC.exe",
         "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
         "${env:ProgramFiles}\Inno Setup 6\ISCC.exe"
     )
@@ -89,7 +92,7 @@ function Resolve-InnoSetupCompiler {
         }
     }
 
-    throw "Inno Setup Compiler 'iscc.exe' wurde nicht gefunden. Bitte Inno Setup 6 installieren oder -InnoSetupCompilerPath angeben."
+    throw "Inno Setup Compiler 'iscc.exe' wurde nicht gefunden. Bitte Inno Setup 7 oder 6 installieren oder -InnoSetupCompilerPath angeben."
 }
 
 function Get-ReleaseVersion {
@@ -199,6 +202,7 @@ Invoke-Step "Bereinige alte Build-Ausgaben" {
     Remove-BuildPath (Join-Path $repoRoot "build")
     Remove-BuildPath $appDistDir
     Remove-BuildPath $zipPath
+    Remove-BuildPath $installerBaseExePath
     Remove-BuildPath $installerExePath
 }
 
@@ -235,6 +239,11 @@ if (-not $SkipInstaller) {
         Invoke-NativeCommand {
             & $isccPath $appVersionDefine $installerScriptPath
         } "Inno-Setup-Installer konnte nicht erstellt werden."
+
+        if (-not (Test-Path $installerBaseExePath)) {
+            throw "Installer-Ausgabe wurde nicht gefunden: $installerBaseExePath"
+        }
+        Move-Item -Path $installerBaseExePath -Destination $installerExePath -Force
     }
 
     if (-not $SkipSigning) {
