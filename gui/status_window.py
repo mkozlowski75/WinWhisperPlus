@@ -9,6 +9,7 @@ from PyQt6.QtGui import QMoveEvent, QContextMenuEvent, QIcon, QPixmap, QColor, Q
 from PyQt6.QtWidgets import QLabel, QWidget, QVBoxLayout, QMenu, QProgressBar
 
 from config.localization import tr
+from utils.resources import resource_path
 
 _STATUS_COLORS = {
     "initializing": "#FF9800",
@@ -207,10 +208,9 @@ class StatusWindow(QWidget):
 
     def _make_app_icon(self, status: str = "ready") -> QIcon:
         """Create colored microphone icon for window based on status."""
-        from pathlib import Path
         from gui.tray_icon import _colorize_pixmap
-        
-        asset_path = Path(__file__).parent.parent / "assets" / "icon.svg"
+
+        asset_path = resource_path("assets/icon.svg")
         color = _STATUS_COLORS.get(status, "#4CAF50")
         
         # Load SVG at larger size for window icon

@@ -17,6 +17,7 @@ from PyQt6.QtGui import QIcon, QPixmap, QColor, QPainter, QFont
 from PyQt6.QtWidgets import QMenu, QSystemTrayIcon, QApplication
 
 from config.localization import tr
+from utils.resources import resource_path
 
 
 def _colorize_pixmap(pixmap: QPixmap, target_color: str) -> QPixmap:
@@ -40,10 +41,9 @@ def _colorize_pixmap(pixmap: QPixmap, target_color: str) -> QPixmap:
 
 def _make_icon(color: str, label: str = "") -> QIcon:
     """Generate a microphone icon SVG with status badge in specified color."""
-    from pathlib import Path
-    
+
     size = 32
-    asset_path = Path(__file__).parent.parent / "assets" / "icon.svg"
+    asset_path = resource_path("assets/icon.svg")
     
     # Load SVG and render at size
     pix = QPixmap(size, size)

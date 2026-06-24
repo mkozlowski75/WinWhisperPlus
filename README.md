@@ -28,10 +28,12 @@ Both hotkeys are fully configurable in the settings dialog.
 ## Requirements
 
 - Windows 10 64-bit or newer
-- Python 3.10+ https://www.python.org/
+- Python 3.10 to 3.14 for source usage and release builds
 - NVIDIA GPU recommended (for faster transcription)
 
 ## Installation
+
+For development or direct source usage:
 
 ```bash
 pip install -r requirements.txt
@@ -39,6 +41,31 @@ pip install -r requirements.txt
 
 > **Note:** `torch` may require a separate CUDA-enabled install.  
 > See [pytorch.org](https://pytorch.org/get-started/locally/) for the right command for your system.
+
+## Windows Release Package
+
+End users do **not** need to install Python when you distribute the PyInstaller
+release package. They only need to unzip the package and start
+`WinWhisperPlus.exe`.
+
+Build the release package on a Windows development machine with Python 3.10 to
+3.14 64-bit installed:
+
+```powershell
+.\scripts\build-release.ps1
+```
+
+The script creates:
+
+```text
+dist\WinWhisperPlus\WinWhisperPlus.exe
+dist\WinWhisperPlus.zip
+```
+
+Distribute `dist\WinWhisperPlus.zip` to the user. On first use, Whisper may need
+internet access to download the selected model into the normal local Whisper
+cache. Settings and statistics are still stored below
+`%APPDATA%\WinWhisperPlus`.
 
 ## Usage
 
