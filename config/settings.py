@@ -46,6 +46,12 @@ def _config_path() -> Path:
     return config_dir / "settings.json"
 
 
+def _legacy_config_path() -> Path:
+    """Return the old MyWhisper settings path for backward-compatible loading."""
+    app_data = os.environ.get("APPDATA") or Path.home()
+    return Path(app_data) / "MyWhisper" / "settings.json"
+
+
 class Settings:
     """Loads, holds and persists application settings."""
 
@@ -59,9 +65,10 @@ class Settings:
     # ------------------------------------------------------------------
 
     def _load(self) -> None:
-        if self._path.exists():
+        load_path = self._path if self._path.exists() else _legacy_config_path()
+        if load_path.exists():
             try:
-                with open(self._path, "r", encoding="utf-8") as fh:
+                with open(load_path, "r", encoding="utf-8") as fh:
                     stored = json.load(fh)
                 if "final_whisper_model" not in stored and "whisper_model" in stored:
                     stored["final_whisper_model"] = stored["whisper_model"]

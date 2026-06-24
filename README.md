@@ -55,14 +55,9 @@ Build the release package on a Windows development machine with Python 3.10 to
 .\scripts\build-release.ps1
 ```
 
-By default, the build script signs `WinWhisperPlus.exe` with the configured
-certificate thumbprint before creating the ZIP package. It first looks for
-`tools\signtool\signtool.exe` and then falls back to `signtool.exe` on `PATH`.
-You can also pass a custom path:
-
-```powershell
-.\scripts\build-release.ps1 -SignToolPath "C:\Path\To\signtool.exe"
-```
+By default, the build script signs `WinWhisperPlus.exe` with PowerShell
+Authenticode signing and the configured certificate thumbprint before creating
+the ZIP package.
 
 For local unsigned test builds:
 

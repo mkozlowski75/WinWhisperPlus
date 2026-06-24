@@ -2,7 +2,6 @@
 param(
     [switch]$SkipTests,
     [switch]$SkipSigning,
-    [string]$SignToolPath,
     [string]$CertificateThumbprint = "d7e33e34882d111c4a3eb5cf0175bea39ecf8a29",
     [string]$TimestampServer = "http://timestamp.digicert.com"
 )
@@ -15,7 +14,6 @@ $pythonExe = Join-Path $venvPath "Scripts\python.exe"
 $distDir = Join-Path $repoRoot "dist"
 $appDistDir = Join-Path $distDir "WinWhisperPlus"
 $appExePath = Join-Path $appDistDir "WinWhisperPlus.exe"
-$repoSignToolPath = Join-Path $repoRoot "tools\signtool\signtool.exe"
 $zipPath = Join-Path $distDir "WinWhisperPlus.zip"
 $pythonVersionArgs = @("-3.14", "-3.13", "-3.12", "-3.11", "-3.10")
 
@@ -30,6 +28,62 @@ function Invoke-Step {
     Write-Host ""
     Write-Host "==> $Name"
     & $Action
+}
+
+function Remove-BuildPath {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    if (-not (Test-Path $Path)) {
+        return
+    }
+
+    try {
+        Remove-Item -Recurse -Force $Path
+    } catch {
+        throw "Konnte '$Path' nicht loeschen. Bitte pruefen, ob WinWhisperPlus.exe oder ein Prozess aus dem dist-Ordner noch laeuft, und den Build danach erneut starten. Originalfehler: $($_.Exception.Message)"
+    }
+}
+
+function Invoke-NativeCommand {
+    param(
+        [Parameter(Mandatory = $true)]
+        [scriptblock]$Command,
+        [Parameter(Mandatory = $true)]
+        [string]$ErrorMessage
+    )
+
+    & $Command
+    if ($LASTEXITCODE -ne 0) {
+        throw "$ErrorMessage Exitcode: $LASTEXITCODE"
+    }
+}
+
+function Set-CodeSignatureWithPowerShell {
+    $normalizedThumbprint = $CertificateThumbprint.Replace(" ", "").ToUpperInvariant()
+    $certificate = Get-Item "Cert:\CurrentUser\My\$normalizedThumbprint" -ErrorAction SilentlyContinue
+    if (-not $certificate) {
+        $certificate = Get-Item "Cert:\LocalMachine\My\$normalizedThumbprint" -ErrorAction SilentlyContinue
+    }
+
+    if (-not $certificate) {
+        throw "Zertifikat mit Thumbprint $CertificateThumbprint wurde im Benutzer- oder Maschinenzertifikatsspeicher nicht gefunden."
+    }
+    if (-not $certificate.HasPrivateKey) {
+        throw "Zertifikat mit Thumbprint $CertificateThumbprint hat keinen verfuegbaren privaten Schluessel."
+    }
+
+    $signature = Set-AuthenticodeSignature `
+        -FilePath $appExePath `
+        -Certificate $certificate `
+        -HashAlgorithm SHA256 `
+        -TimestampServer $TimestampServer
+
+    if ($signature.Status -ne "Valid") {
+        throw "PowerShell-Signierung ist fehlgeschlagen. Status: $($signature.Status). $($signature.StatusMessage)"
+    }
 }
 
 Set-Location $repoRoot
@@ -58,58 +112,44 @@ Invoke-Step "Pruefe Python" {
 
 Invoke-Step "Erstelle Build-Umgebung" {
     if (-not (Test-Path $pythonExe)) {
-        py $script:PythonLauncherArg -m venv $venvPath
+        Invoke-NativeCommand {
+            py $script:PythonLauncherArg -m venv $venvPath
+        } "Virtuelle Build-Umgebung konnte nicht erstellt werden."
     }
-    & $pythonExe -m pip install --upgrade pip
-    & $pythonExe -m pip install -r requirements.txt -r requirements-dev.txt
+    Invoke-NativeCommand {
+        & $pythonExe -m pip install --upgrade pip
+    } "pip konnte nicht aktualisiert werden."
+    Invoke-NativeCommand {
+        & $pythonExe -m pip install -r requirements.txt -r requirements-dev.txt
+    } "Abhaengigkeiten konnten nicht installiert werden."
 }
 
 if (-not $SkipTests) {
     Invoke-Step "Fuehre Tests aus" {
-        & $pythonExe -m pytest tests
+        Invoke-NativeCommand {
+            & $pythonExe -m pytest tests
+        } "Tests sind fehlgeschlagen."
     }
 }
 
 Invoke-Step "Bereinige alte Build-Ausgaben" {
-    if (Test-Path (Join-Path $repoRoot "build")) {
-        Remove-Item -Recurse -Force (Join-Path $repoRoot "build")
-    }
-    if (Test-Path $appDistDir) {
-        Remove-Item -Recurse -Force $appDistDir
-    }
-    if (Test-Path $zipPath) {
-        Remove-Item -Force $zipPath
-    }
+    Remove-BuildPath (Join-Path $repoRoot "build")
+    Remove-BuildPath $appDistDir
+    Remove-BuildPath $zipPath
 }
 
 Invoke-Step "Baue WinWhisperPlus.exe" {
-    & $pythonExe -m PyInstaller --clean .\WinWhisperPlus.spec
+    Invoke-NativeCommand {
+        & $pythonExe -m PyInstaller --clean .\WinWhisperPlus.spec
+    } "PyInstaller-Build ist fehlgeschlagen."
 }
 
 if (-not $SkipSigning) {
     Invoke-Step "Signiere WinWhisperPlus.exe" {
-        $resolvedSignToolPath = $SignToolPath
-        if (-not $resolvedSignToolPath) {
-            if (Test-Path $repoSignToolPath) {
-                $resolvedSignToolPath = $repoSignToolPath
-            } else {
-                $resolvedSignToolPath = "signtool.exe"
-            }
-        }
-
-        if (-not (Test-Path $resolvedSignToolPath) -and -not (Get-Command $resolvedSignToolPath -ErrorAction SilentlyContinue)) {
-            throw "signtool.exe wurde nicht gefunden. Erwartet unter tools\signtool\signtool.exe, im PATH oder per -SignToolPath. Mit -SkipSigning kann die Signierung uebersprungen werden."
-        }
         if (-not (Test-Path $appExePath)) {
             throw "Build-Ausgabe wurde nicht gefunden: $appExePath"
         }
-
-        & $resolvedSignToolPath sign `
-            /sha1 $CertificateThumbprint `
-            /tr $TimestampServer `
-            /td sha256 `
-            /fd sha256 `
-            /v $appExePath
+        Set-CodeSignatureWithPowerShell
     }
 }
 
