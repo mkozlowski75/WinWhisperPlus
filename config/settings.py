@@ -14,9 +14,9 @@ DEFAULT_SETTINGS = {
     "ui_language": "de",        # 'de', 'pl', 'en'
     "microphone_index": None,   # None = system default
     "microphone_name": None,    # Fallback when device indices change
-    "whisper_model": "base",    # legacy alias for final_whisper_model
+    "whisper_model": "small",   # legacy alias for final_whisper_model
     "live_whisper_model": "tiny",
-    "final_whisper_model": "base",
+    "final_whisper_model": "small",
     "auto_insert": True,
     "live_transcription_enabled": False,
     "live_chunk_seconds": 2.0,

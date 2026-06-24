@@ -28,9 +28,9 @@ def test_default_settings():
     assert s.ui_language == "de"
     assert s.microphone_index is None
     assert s.microphone_name is None
-    assert s.whisper_model == "base"
+    assert s.whisper_model == "small"
     assert s.live_whisper_model == "tiny"
-    assert s.final_whisper_model == "base"
+    assert s.final_whisper_model == "small"
     assert s.auto_insert is True
     assert s.live_transcription_enabled is False
 
