@@ -20,7 +20,7 @@ A Windows speech-recognition tool powered by OpenAI Whisper running entirely loc
 
 | Action                     | Default shortcut    |
 |----------------------------|---------------------|
-| Start / stop recording     | `Alt + Shift + R`   |
+| Start / stop recording     | `Ctrl + Alt + H`    |
 | Cycle language             | `Alt + Shift + S`   |
 
 Both hotkeys are fully configurable in the settings dialog.
@@ -96,6 +96,9 @@ python main.py
 
 The application starts minimised to the system tray.  
 Double-click the tray icon or use the hotkey to start/stop recording.
+
+For end-user instructions with screenshots, see the German
+[Benutzerhandbuch](docs/benutzerhandbuch.md).
 
 ## Configuration
 
