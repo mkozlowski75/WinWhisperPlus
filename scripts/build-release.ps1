@@ -130,6 +130,16 @@ function Set-CodeSignatureWithPowerShell {
     if (-not $certificate) {
         $certificate = Get-Item "Cert:\LocalMachine\My\$normalizedThumbprint" -ErrorAction SilentlyContinue
     }
+    if (-not $certificate) {
+        $certificate = Get-ChildItem "Cert:\CurrentUser\My" -ErrorAction SilentlyContinue |
+            Where-Object { $_.Thumbprint -eq $normalizedThumbprint } |
+            Select-Object -First 1
+    }
+    if (-not $certificate) {
+        $certificate = Get-ChildItem "Cert:\LocalMachine\My" -ErrorAction SilentlyContinue |
+            Where-Object { $_.Thumbprint -eq $normalizedThumbprint } |
+            Select-Object -First 1
+    }
 
     if (-not $certificate) {
         throw "Zertifikat mit Thumbprint $CertificateThumbprint wurde im Benutzer- oder Maschinenzertifikatsspeicher nicht gefunden."
