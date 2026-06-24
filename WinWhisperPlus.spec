@@ -8,6 +8,7 @@ block_cipher = None
 datas = [
     ("assets/icon.svg", "assets"),
     ("assets/Microphone.ico", "assets"),
+    ("VERSION", "."),
 ]
 datas += collect_data_files("whisper")
 

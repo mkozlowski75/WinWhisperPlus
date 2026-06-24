@@ -27,6 +27,7 @@ from PyQt6.QtGui import QKeySequence
 from config.localization import UI_LANGUAGES, localized_spoken_language_name, tr
 from config.settings import LANGUAGE_CYCLE, UI_LANGUAGE_CYCLE, Settings
 from core.recorder import list_microphones
+from utils.resources import app_version
 
 if TYPE_CHECKING:
     pass
@@ -162,6 +163,8 @@ class SettingsWindow(QDialog):
 
         # --- Buttons ---------------------------------------------------
         btn_layout = QHBoxLayout()
+        self._version_label = QLabel()
+        btn_layout.addWidget(self._version_label)
         self._save_btn = QPushButton()
         self._save_btn.setDefault(True)
         self._save_btn.clicked.connect(self._save)
@@ -198,6 +201,7 @@ class SettingsWindow(QDialog):
         self._live_transcription_cb.setToolTip(tr("live_transcription_tooltip", self._settings))
         self._emoji_mode_cb.setText(tr("emoji_mode", self._settings))
         self._emoji_mode_cb.setToolTip(tr("emoji_mode_tooltip", self._settings))
+        self._version_label.setText(tr("version_label", self._settings, version=app_version()))
         self._save_btn.setText(tr("save", self._settings))
         self._cancel_btn.setText(tr("cancel", self._settings))
         self._rebuild_language_combos()
