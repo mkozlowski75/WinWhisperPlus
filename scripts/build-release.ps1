@@ -2,6 +2,9 @@
 param(
     [switch]$SkipTests,
     [switch]$SkipSigning,
+    [switch]$SkipInstaller,
+    [string]$AppVersion,
+    [string]$InnoSetupCompilerPath,
     [string]$CertificateThumbprint = "d7e33e34882d111c4a3eb5cf0175bea39ecf8a29",
     [string]$TimestampServer = "http://timestamp.digicert.com"
 )
@@ -15,6 +18,8 @@ $distDir = Join-Path $repoRoot "dist"
 $appDistDir = Join-Path $distDir "WinWhisperPlus"
 $appExePath = Join-Path $appDistDir "WinWhisperPlus.exe"
 $zipPath = Join-Path $distDir "WinWhisperPlus.zip"
+$installerScriptPath = Join-Path $repoRoot "installer\WinWhisperPlus.iss"
+$versionFilePath = Join-Path $repoRoot "VERSION"
 $pythonVersionArgs = @("-3.14", "-3.13", "-3.12", "-3.11", "-3.10")
 
 function Invoke-Step {
@@ -61,7 +66,62 @@ function Invoke-NativeCommand {
     }
 }
 
+function Resolve-InnoSetupCompiler {
+    if ($InnoSetupCompilerPath) {
+        if (-not (Test-Path $InnoSetupCompilerPath)) {
+            throw "Inno Setup Compiler wurde nicht gefunden: $InnoSetupCompilerPath"
+        }
+        return (Resolve-Path $InnoSetupCompilerPath).Path
+    }
+
+    $isccCommand = Get-Command iscc.exe -ErrorAction SilentlyContinue
+    if ($isccCommand) {
+        return $isccCommand.Source
+    }
+
+    $candidatePaths = @(
+        "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+        "${env:ProgramFiles}\Inno Setup 6\ISCC.exe"
+    )
+    foreach ($candidatePath in $candidatePaths) {
+        if ($candidatePath -and (Test-Path $candidatePath)) {
+            return $candidatePath
+        }
+    }
+
+    throw "Inno Setup Compiler 'iscc.exe' wurde nicht gefunden. Bitte Inno Setup 6 installieren oder -InnoSetupCompilerPath angeben."
+}
+
+function Get-ReleaseVersion {
+    if ($AppVersion) {
+        if ($AppVersion -notmatch '^\d+\.\d+\.\d+$') {
+            throw "AppVersion muss im Format Major.Minor.Patch angegeben werden, z. B. 1.0.1."
+        }
+        return $AppVersion
+    }
+
+    if (-not (Test-Path $versionFilePath)) {
+        Set-Content -Path $versionFilePath -Value "1.0.0" -NoNewline -Encoding ascii
+        return "1.0.0"
+    }
+
+    $currentVersion = (Get-Content $versionFilePath -Raw).Trim()
+    if ($currentVersion -notmatch '^(\d+)\.(\d+)\.(\d+)$') {
+        throw "VERSION enthaelt keine gueltige Version im Format Major.Minor.Patch: $currentVersion"
+    }
+
+    $nextPatch = [int]$Matches[3] + 1
+    $nextVersion = "$($Matches[1]).$($Matches[2]).$nextPatch"
+    Set-Content -Path $versionFilePath -Value $nextVersion -NoNewline -Encoding ascii
+    return $nextVersion
+}
+
 function Set-CodeSignatureWithPowerShell {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$FilePath
+    )
+
     $normalizedThumbprint = $CertificateThumbprint.Replace(" ", "").ToUpperInvariant()
     $certificate = Get-Item "Cert:\CurrentUser\My\$normalizedThumbprint" -ErrorAction SilentlyContinue
     if (-not $certificate) {
@@ -76,7 +136,7 @@ function Set-CodeSignatureWithPowerShell {
     }
 
     $signature = Set-AuthenticodeSignature `
-        -FilePath $appExePath `
+        -FilePath $FilePath `
         -Certificate $certificate `
         -HashAlgorithm SHA256 `
         -TimestampServer $TimestampServer
@@ -87,6 +147,9 @@ function Set-CodeSignatureWithPowerShell {
 }
 
 Set-Location $repoRoot
+$releaseVersion = Get-ReleaseVersion
+$installerExePath = Join-Path $distDir "WinWhisperPlus-Setup-$releaseVersion.exe"
+Write-Host "Release-Version: $releaseVersion"
 
 Invoke-Step "Pruefe Python" {
     $py = Get-Command py -ErrorAction SilentlyContinue
@@ -136,6 +199,7 @@ Invoke-Step "Bereinige alte Build-Ausgaben" {
     Remove-BuildPath (Join-Path $repoRoot "build")
     Remove-BuildPath $appDistDir
     Remove-BuildPath $zipPath
+    Remove-BuildPath $installerExePath
 }
 
 Invoke-Step "Baue WinWhisperPlus.exe" {
@@ -149,7 +213,7 @@ if (-not $SkipSigning) {
         if (-not (Test-Path $appExePath)) {
             throw "Build-Ausgabe wurde nicht gefunden: $appExePath"
         }
-        Set-CodeSignatureWithPowerShell
+        Set-CodeSignatureWithPowerShell -FilePath $appExePath
     }
 }
 
@@ -160,7 +224,33 @@ Invoke-Step "Erstelle ZIP-Paket" {
     Compress-Archive -Path (Join-Path $appDistDir "*") -DestinationPath $zipPath -Force
 }
 
+if (-not $SkipInstaller) {
+    Invoke-Step "Baue Inno-Setup-Installer" {
+        if (-not (Test-Path $installerScriptPath)) {
+            throw "Inno-Setup-Skript wurde nicht gefunden: $installerScriptPath"
+        }
+
+        $isccPath = Resolve-InnoSetupCompiler
+        $appVersionDefine = "/DAppVersion=`"$releaseVersion`""
+        Invoke-NativeCommand {
+            & $isccPath $appVersionDefine $installerScriptPath
+        } "Inno-Setup-Installer konnte nicht erstellt werden."
+    }
+
+    if (-not $SkipSigning) {
+        Invoke-Step "Signiere Setup-EXE" {
+            if (-not (Test-Path $installerExePath)) {
+                throw "Installer-Ausgabe wurde nicht gefunden: $installerExePath"
+            }
+            Set-CodeSignatureWithPowerShell -FilePath $installerExePath
+        }
+    }
+}
+
 Write-Host ""
 Write-Host "Release-Paket erstellt:"
 Write-Host "  $appDistDir"
 Write-Host "  $zipPath"
+if (-not $SkipInstaller) {
+    Write-Host "  $installerExePath"
+}

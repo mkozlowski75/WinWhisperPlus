@@ -49,15 +49,18 @@ release package. They only need to unzip the package and start
 `WinWhisperPlus.exe`.
 
 Build the release package on a Windows development machine with Python 3.10 to
-3.14 64-bit installed:
+3.14 64-bit and Inno Setup 6 installed:
 
 ```powershell
 .\scripts\build-release.ps1
 ```
 
+Each build automatically increments the patch version stored in `VERSION`
+unless `-AppVersion` is specified explicitly.
+
 By default, the build script signs `WinWhisperPlus.exe` with PowerShell
 Authenticode signing and the configured certificate thumbprint before creating
-the ZIP package.
+the ZIP package and installer.
 
 For local unsigned test builds:
 
@@ -65,16 +68,24 @@ For local unsigned test builds:
 .\scripts\build-release.ps1 -SkipSigning
 ```
 
+To build only the PyInstaller folder and ZIP without an installer:
+
+```powershell
+.\scripts\build-release.ps1 -SkipInstaller
+```
+
 The script creates:
 
 ```text
 dist\WinWhisperPlus\WinWhisperPlus.exe
 dist\WinWhisperPlus.zip
+dist\WinWhisperPlus-Setup-1.0.0.exe
 ```
 
-Distribute `dist\WinWhisperPlus.zip` to the user. On first use, Whisper may need
-internet access to download the selected model into the normal local Whisper
-cache. Settings and statistics are still stored below
+Distribute `dist\WinWhisperPlus-Setup-1.0.0.exe` to the user, or use
+`dist\WinWhisperPlus.zip` for a portable-style package. On first use, Whisper
+may need internet access to download the selected model into the normal local
+Whisper cache. Settings and statistics are still stored below
 `%APPDATA%\WinWhisperPlus`.
 
 ## Usage
