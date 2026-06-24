@@ -28,7 +28,7 @@ Both hotkeys are fully configurable in the settings dialog.
 ## Requirements
 
 - Windows 10 64-bit or newer
-- Python 3.10+
+- Python 3.10+ https://www.python.org/
 - NVIDIA GPU recommended (for faster transcription)
 
 ## Installation
