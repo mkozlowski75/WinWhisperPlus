@@ -1,6 +1,10 @@
 [CmdletBinding()]
 param(
-    [switch]$SkipTests
+    [switch]$SkipTests,
+    [switch]$SkipSigning,
+    [string]$SignToolPath,
+    [string]$CertificateThumbprint = "d7e33e34882d111c4a3eb5cf0175bea39ecf8a29",
+    [string]$TimestampServer = "http://timestamp.digicert.com"
 )
 
 $ErrorActionPreference = "Stop"
@@ -10,6 +14,8 @@ $venvPath = Join-Path $repoRoot ".venv-build"
 $pythonExe = Join-Path $venvPath "Scripts\python.exe"
 $distDir = Join-Path $repoRoot "dist"
 $appDistDir = Join-Path $distDir "WinWhisperPlus"
+$appExePath = Join-Path $appDistDir "WinWhisperPlus.exe"
+$repoSignToolPath = Join-Path $repoRoot "tools\signtool\signtool.exe"
 $zipPath = Join-Path $distDir "WinWhisperPlus.zip"
 $pythonVersionArgs = @("-3.14", "-3.13", "-3.12", "-3.11", "-3.10")
 
@@ -78,6 +84,33 @@ Invoke-Step "Bereinige alte Build-Ausgaben" {
 
 Invoke-Step "Baue WinWhisperPlus.exe" {
     & $pythonExe -m PyInstaller --clean .\WinWhisperPlus.spec
+}
+
+if (-not $SkipSigning) {
+    Invoke-Step "Signiere WinWhisperPlus.exe" {
+        $resolvedSignToolPath = $SignToolPath
+        if (-not $resolvedSignToolPath) {
+            if (Test-Path $repoSignToolPath) {
+                $resolvedSignToolPath = $repoSignToolPath
+            } else {
+                $resolvedSignToolPath = "signtool.exe"
+            }
+        }
+
+        if (-not (Test-Path $resolvedSignToolPath) -and -not (Get-Command $resolvedSignToolPath -ErrorAction SilentlyContinue)) {
+            throw "signtool.exe wurde nicht gefunden. Erwartet unter tools\signtool\signtool.exe, im PATH oder per -SignToolPath. Mit -SkipSigning kann die Signierung uebersprungen werden."
+        }
+        if (-not (Test-Path $appExePath)) {
+            throw "Build-Ausgabe wurde nicht gefunden: $appExePath"
+        }
+
+        & $resolvedSignToolPath sign `
+            /sha1 $CertificateThumbprint `
+            /tr $TimestampServer `
+            /td sha256 `
+            /fd sha256 `
+            /v $appExePath
+    }
 }
 
 Invoke-Step "Erstelle ZIP-Paket" {
